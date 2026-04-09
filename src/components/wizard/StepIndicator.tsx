@@ -17,7 +17,7 @@ interface StepIndicatorProps {
 
 export function StepIndicator({ currentStep, onStepClick }: StepIndicatorProps) {
   return (
-    <nav className="flex items-center justify-center gap-2 py-6">
+    <nav className="flex items-center justify-center gap-2 py-6 overflow-x-auto flex-nowrap">
       {STEPS.map((step, index) => (
         <button
           key={step.path}

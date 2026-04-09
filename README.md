@@ -1,36 +1,61 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Harness Forge
 
-## Getting Started
+Visual project configuration tool for AI coding agents (Claude Code, OpenAI Codex). Generate CLAUDE.md, project scaffold, and Agent architecture configs through a step-by-step wizard.
 
-First, run the development server:
+## What It Does
+
+Combines two powerful ideas:
+
+- **Anthropic's Managed Agents architecture** — Session/Harness/Sandbox decoupled design where the brain (AI + harness) is separated from the hands (sandboxes + tools)
+- **GStack's constraint feedback flow** — Multi-role sprint process: Think → Plan → Build → Review → Test → Ship → Reflect
+
+Configure your project visually, then download a ZIP with everything your AI agent needs.
+
+## Quick Start
 
 ```bash
+# Install dependencies
+npm install
+
+# Run dev server
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+
+# Build for production
+npm run build
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open http://localhost:3000 and start configuring.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## How It Works
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+1. **Choose a template** — Solo Dev, GStack Sprint, Managed Agents, or start from scratch
+2. **Configure architecture** — Set up Session storage, Harness engine, Sandbox type
+3. **Define your sprint flow** — Pick stages, assign roles, set gates and constraints
+4. **Add integrations** — MCP servers, hooks
+5. **Preview & generate** — See all output files, download as ZIP
 
-## Learn More
+## Tech Stack
 
-To learn more about Next.js, take a look at the following resources:
+- Next.js 15 + TypeScript
+- Tailwind CSS + shadcn/ui
+- Zustand (state management)
+- JSZip (client-side ZIP generation)
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Architecture
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```
+Frontend (Next.js)
+├── Template Gallery → pre-fills config
+├── Wizard (5 steps) → Zustand store
+└── Preview & Generate → generators → ZIP
 
-## Deploy on Vercel
+Generators
+├── CLAUDE.md generator
+├── Settings generator (.claude/settings.json)
+├── Scaffold generator (package.json, README, boilerplate)
+└── ZIP packager (JSZip + file-saver)
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## License
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+MIT

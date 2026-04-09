@@ -48,20 +48,20 @@ export function FilePreview({ files }: FilePreviewProps) {
   const selectedFile = files[selectedIndex];
 
   return (
-    <div className="flex h-[520px] rounded-lg border border-border overflow-hidden">
+    <div className="flex flex-col md:flex-row rounded-lg border border-border overflow-hidden md:h-[520px]">
       {/* Left panel: file tree */}
-      <div className="w-64 shrink-0 border-r border-border bg-muted/30">
+      <div className="w-full md:w-64 shrink-0 md:border-r border-b md:border-b-0 border-border bg-muted/30">
         <div className="border-b border-border px-3 py-2 text-xs font-medium text-muted-foreground">
           Files ({files.length})
         </div>
-        <ScrollArea className="h-[calc(520px-37px)]">
-          <div className="py-1">
+        <ScrollArea className="h-40 md:h-[calc(520px-37px)]">
+          <div className="flex flex-row md:flex-col overflow-x-auto md:overflow-x-visible py-1">
             {files.map((file, index) => (
               <button
                 key={file.path}
                 onClick={() => setSelectedIndex(index)}
                 className={cn(
-                  'flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm transition-colors',
+                  'flex items-center gap-2 px-3 py-1.5 text-left text-sm transition-colors shrink-0 md:shrink',
                   index === selectedIndex
                     ? 'bg-primary/10 text-primary font-medium'
                     : 'text-foreground hover:bg-muted',
@@ -76,7 +76,7 @@ export function FilePreview({ files }: FilePreviewProps) {
       </div>
 
       {/* Right panel: code preview */}
-      <div className="flex min-w-0 flex-1 flex-col">
+      <div className="flex min-w-0 flex-1 flex-col min-h-[320px]">
         {selectedFile ? (
           <>
             <div className="flex items-center justify-between border-b border-border px-4 py-2">
