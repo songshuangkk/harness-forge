@@ -1,14 +1,18 @@
-// ============================================================
-// Project Configuration Types
-// ============================================================
+export type Framework = 'next' | 'react' | 'vue' | 'flutter' | 'custom';
+export type Language = 'typescript' | 'javascript' | 'python' | 'dart' | 'go';
+export type PackageManager = 'npm' | 'yarn' | 'pnpm' | 'bun';
 
-// ---------------------
-// Project Info
-// ---------------------
+export type SessionStorage = 'local-file' | 'git-based' | 'custom';
+export type RecoveryStrategy = 'last-event' | 'last-checkpoint' | 'custom';
+export type AIEngine = 'claude-code' | 'codex' | 'custom';
+export type ContextStrategy = 'compaction' | 'sliding-window' | 'full';
+export type SandboxType = 'local' | 'docker' | 'remote';
+export type CredentialPolicy = 'vault' | 'bundled' | 'none';
+
 export interface TechStack {
-  framework: 'next' | 'nuxt' | 'sveltekit' | 'remix' | 'astro' | 'vite-react' | 'vite-vue';
-  language: 'typescript' | 'javascript';
-  packageManager: 'pnpm' | 'npm' | 'yarn' | 'bun';
+  framework: Framework;
+  language: Language;
+  packageManager: PackageManager;
 }
 
 export interface ProjectInfo {
@@ -18,25 +22,29 @@ export interface ProjectInfo {
   gitInit: boolean;
 }
 
-// ---------------------
-// Architecture Config
-// ---------------------
+export interface MCPServerConfig {
+  name: string;
+  command: string;
+  args: string[];
+  env?: Record<string, string>;
+}
+
 export interface SessionConfig {
-  storage: 'local-file' | 'sqlite' | 'memory' | 'custom';
+  storage: SessionStorage;
   eventRetention: number;
-  recoveryStrategy: 'last-event' | 'snapshot' | 'full-replay';
+  recoveryStrategy: RecoveryStrategy;
 }
 
 export interface HarnessConfig {
-  engine: 'claude-code' | 'codex' | 'custom';
-  contextStrategy: 'compaction' | 'sliding-window' | 'rag' | 'full';
+  engine: AIEngine;
+  contextStrategy: ContextStrategy;
   maxRetries: number;
 }
 
 export interface SandboxConfig {
-  type: 'local' | 'docker' | 'remote' | 'none';
+  type: SandboxType;
   mcpServers: MCPServerConfig[];
-  credentialPolicy: 'none' | 'env-only' | 'vault' | 'custom';
+  credentialPolicy: CredentialPolicy;
 }
 
 export interface ArchitectureConfig {
@@ -45,49 +53,40 @@ export interface ArchitectureConfig {
   sandbox: SandboxConfig;
 }
 
-// ---------------------
-// Flow Config
-// ---------------------
-export interface FlowRole {
+export type StageName = 'think' | 'plan' | 'build' | 'review' | 'test' | 'ship' | 'reflect';
+export type RoleName = 'ceo' | 'designer' | 'eng-manager' | 'qa' | 'security' | 'release' | 'doc-engineer';
+
+export interface SprintStage {
   id: string;
-  name: string;
+  name: StageName;
+  order: number;
+  enabled: boolean;
+  roles: RoleName[];
+  gates: string[];
+  outputFormat?: string;
+}
+
+export interface RoleConfig {
+  id: RoleName;
+  label: string;
   description: string;
-  systemPrompt: string;
+  defaultConstraints: string[];
 }
 
-export interface FlowConstraint {
-  id: string;
-  type: 'file-guard' | 'test-requirement' | 'review-rule' | 'custom';
-  config: Record<string, unknown>;
-}
+export type ConstraintType = 'gate' | 'checklist' | 'output-requirement';
 
-export interface SprintStep {
+export interface ConstraintRule {
   id: string;
-  role: string;
-  task: string;
-  dependsOn: string[];
+  stageId: string;
+  type: ConstraintType;
+  description: string;
+  enforced: boolean;
 }
 
 export interface FlowConfig {
-  sprint: SprintStep[];
-  roles: FlowRole[];
-  constraints: FlowConstraint[];
-}
-
-// ---------------------
-// Integration Config
-// ---------------------
-export interface MCPServerConfig {
-  name: string;
-  command: string;
-  args: string[];
-  env?: Record<string, string>;
-}
-
-export interface HookConfig {
-  event: 'pre-step' | 'post-step' | 'on-error' | 'on-complete';
-  command: string;
-  args: string[];
+  sprint: SprintStage[];
+  roles: RoleConfig[];
+  constraints: ConstraintRule[];
 }
 
 export interface IntegrationConfig {
@@ -95,12 +94,27 @@ export interface IntegrationConfig {
   hooks: HookConfig[];
 }
 
-// ---------------------
-// Root Config
-// ---------------------
+export interface HookConfig {
+  event: string;
+  command: string;
+}
+
 export interface ProjectConfig {
   project: ProjectInfo;
   architecture: ArchitectureConfig;
   flow: FlowConfig;
   integration: IntegrationConfig;
+}
+
+export interface OutputFile {
+  path: string;
+  content: string;
+}
+
+export interface TemplatePreset {
+  id: string;
+  name: string;
+  description: string;
+  icon: string;
+  config: Partial<ProjectConfig>;
 }
