@@ -1,8 +1,11 @@
 'use client';
 
+import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { useProjectConfig } from '@/store/useProjectConfig';
+import { FlowEditor } from '@/components/wizard/FlowEditor';
+import type { StageName, SprintStage } from '@/types';
 
 const STEP_PATHS = [
   '/wizard',
@@ -12,9 +15,43 @@ const STEP_PATHS = [
   '/wizard/generate',
 ];
 
+const DEFAULT_STAGES: { name: StageName; order: number }[] = [
+  { name: 'think', order: 0 },
+  { name: 'plan', order: 1 },
+  { name: 'build', order: 2 },
+  { name: 'review', order: 3 },
+  { name: 'test', order: 4 },
+  { name: 'ship', order: 5 },
+  { name: 'reflect', order: 6 },
+];
+
+function buildDefaultSprint(): SprintStage[] {
+  return DEFAULT_STAGES.map(({ name, order }) => ({
+    id: name,
+    name,
+    order,
+    enabled: true,
+    roles: [],
+    gates: [],
+    outputFormat: '',
+  }));
+}
+
 export default function FlowPage() {
   const router = useRouter();
   const setCurrentStep = useProjectConfig((s) => s.setCurrentStep);
+  const flow = useProjectConfig((s) => s.config.flow);
+  const setFlow = useProjectConfig((s) => s.setFlow);
+
+  useEffect(() => {
+    if (flow.sprint.length === 0) {
+      setFlow({ sprint: buildDefaultSprint() });
+    }
+  }, [flow.sprint.length, setFlow]);
+
+  const handleSprintChange = (sprint: SprintStage[]) => {
+    setFlow({ sprint });
+  };
 
   const goPrev = () => {
     setCurrentStep(1);
@@ -30,10 +67,14 @@ export default function FlowPage() {
     <Card>
       <CardHeader>
         <CardTitle>Constraint Flow</CardTitle>
-        <CardDescription>Define sprint roles, constraints, and workflow rules.</CardDescription>
+        <CardDescription>
+          Define sprint stages, assign roles, and configure quality gates for each stage.
+        </CardDescription>
       </CardHeader>
       <CardContent>
-        <p className="text-muted-foreground">Step 3 form will go here</p>
+        {flow.sprint.length > 0 && (
+          <FlowEditor sprint={flow.sprint} onChange={handleSprintChange} />
+        )}
         <div className="mt-6 flex justify-between">
           <button
             onClick={goPrev}
