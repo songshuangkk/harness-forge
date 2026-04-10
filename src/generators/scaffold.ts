@@ -1,133 +1,16 @@
 import type { OutputFile, ProjectConfig } from '@/types';
+import { getConfigFilename } from './engines/claude/claudeMd';
 
 /**
- * Generates basic project scaffold files based on the tech stack
- * defined in the given ProjectConfig.
+ * Generates project scaffold files — README and architecture doc.
+ * Framework-specific boilerplate is intentionally NOT generated;
+ * users create those with their own tooling after downloading the ZIP.
  */
 export function generateScaffold(config: ProjectConfig): OutputFile[] {
-  const files: OutputFile[] = [];
-  const { framework } = config.project.techStack;
-  const pm = config.project.techStack.packageManager;
-
-  // 1. Package manifest
-  if (framework === 'flutter') {
-    files.push(generatePubspec(config));
-  } else {
-    files.push(generatePackageJson(config));
-  }
-
-  // 2. README
-  files.push(generateReadme(config));
-
-  // 3. Architecture doc
-  files.push(generateArchitectureDoc(config));
-
-  // 4. Framework boilerplate
-  const boilerplate = generateBoilerplate(config);
-  files.push(...boilerplate);
-
-  return files;
-}
-
-// ---------------------------------------------------------------------------
-// Package manifest
-// ---------------------------------------------------------------------------
-
-function generatePackageJson(config: ProjectConfig): OutputFile {
-  const { framework, packageManager: pm } = config.project.techStack;
-  const name = config.project.name;
-
-  const pkg: Record<string, unknown> = {
-    name,
-    version: '0.1.0',
-    private: true,
-  };
-
-  if (framework === 'next') {
-    pkg.scripts = {
-      dev: 'next dev',
-      build: 'next build',
-      start: 'next start',
-      lint: 'next lint',
-    };
-    pkg.dependencies = {
-      next: 'latest',
-      react: 'latest',
-      'react-dom': 'latest',
-    };
-    pkg.devDependencies = {
-      typescript: 'latest',
-      '@types/node': 'latest',
-      '@types/react': 'latest',
-    };
-  } else if (framework === 'react') {
-    pkg.scripts = {
-      dev: 'vite',
-      build: 'vite build',
-      preview: 'vite preview',
-    };
-    pkg.dependencies = {
-      react: 'latest',
-      'react-dom': 'latest',
-    };
-    pkg.devDependencies = {
-      typescript: 'latest',
-      vite: 'latest',
-      '@vitejs/plugin-react': 'latest',
-      '@types/react': 'latest',
-      '@types/react-dom': 'latest',
-    };
-  } else if (framework === 'vue') {
-    pkg.scripts = {
-      dev: 'vite',
-      build: 'vite build',
-      preview: 'vite preview',
-    };
-    pkg.dependencies = {
-      vue: 'latest',
-    };
-    pkg.devDependencies = {
-      typescript: 'latest',
-      vite: 'latest',
-      '@vitejs/plugin-vue': 'latest',
-      'vue-tsc': 'latest',
-    };
-  } else {
-    // custom – minimal
-    pkg.scripts = {
-      dev: 'echo "No dev script configured"',
-      build: 'echo "No build script configured"',
-    };
-  }
-
-  return {
-    path: 'package.json',
-    content: JSON.stringify(pkg, null, 2) + '\n',
-  };
-}
-
-function generatePubspec(config: ProjectConfig): OutputFile {
-  const name = config.project.name.replace(/[^a-z0-9_]/g, '_');
-  const content = `name: ${name}
-description: ${config.project.description}
-version: 0.1.0
-
-environment:
-  sdk: ">=3.0.0 <4.0.0"
-
-dependencies:
-  flutter:
-    sdk: flutter
-
-dev_dependencies:
-  flutter_test:
-    sdk: flutter
-  flutter_lints: ^4.0.0
-
-flutter:
-  uses-material-design: true
-`;
-  return { path: 'pubspec.yaml', content };
+  return [
+    generateReadme(config),
+    generateArchitectureDoc(config),
+  ];
 }
 
 // ---------------------------------------------------------------------------
@@ -135,25 +18,38 @@ flutter:
 // ---------------------------------------------------------------------------
 
 function generateReadme(config: ProjectConfig): OutputFile {
-  const { framework, packageManager: pm } = config.project.techStack;
-  const installCmd = getInstallCommand(pm);
-  const devCmd = getDevCommand(framework);
+  const { language, stackDescription } = config.project.techStack;
+  const stackLine = stackDescription
+    ? `${language} — ${stackDescription}`
+    : language;
+  const engine = config.architecture.harness.engine;
+  const configFile = getConfigFilename(engine);
+
+  let engineSpecificGettingStarted = '';
+  if (engine === 'claude-code') {
+    engineSpecificGettingStarted = `Use \`/think\`, \`/plan\`, \`/build\`, \`/review\`, \`/test\`, \`/ship\`, \`/reflect\` to drive each stage.`;
+  } else if (engine === 'cursor') {
+    engineSpecificGettingStarted = `Stage rules are loaded automatically via \`.cursor/rules/\`. Reference them with \`@think\`, \`@plan\`, etc. in your prompts.`;
+  } else if (engine === 'codex') {
+    engineSpecificGettingStarted = `Skills are defined in \`.codex/skills/\`. Each skill contains gates, constraints, and configuration for its sprint stage.`;
+  }
 
   const content = `# ${config.project.name}
 
 ${config.project.description}
 
+## Tech Stack
+
+${stackLine}
+
 ## Getting Started
 
-\`\`\`bash
-${installCmd}
-${devCmd}
-\`\`\`
+This project uses an AI-assisted development workflow.
 
-## Architecture
-
-This project uses an AI-assisted development workflow powered by ${config.architecture.harness.engine}.
-See CLAUDE.md for full configuration.
+- The \`.harness/\` directory contains engine-agnostic definitions (config, roles, flows, constraints).
+- Engine-specific files are in ${engine === 'claude-code' ? '`.claude/` (commands, hooks, settings)' : engine === 'cursor' ? '`.cursor/` (rules, mcp)' : engine === 'codex' ? '`.codex/` (skills, hooks, config)' : 'the project root'}.
+- See \`${configFile}\` for the full configuration.
+${engineSpecificGettingStarted ? `\n${engineSpecificGettingStarted}` : ''}
 `;
   return { path: 'README.md', content };
 }
@@ -162,14 +58,66 @@ See CLAUDE.md for full configuration.
 // Architecture doc
 // ---------------------------------------------------------------------------
 
+function generateFileStructureTree(config: ProjectConfig): string {
+  const engine = config.architecture.harness.engine;
+  const enabledStages = config.flow.sprint
+    .filter((s) => s.enabled)
+    .sort((a, b) => a.order - b.order);
+
+  const lines: string[] = [
+    '.harness/          Engine-agnostic definitions',
+    '  config.yaml      Full project configuration',
+    '  roles/            Role definitions',
+    '  flows/            Stage flow definitions',
+    '  constraints/      Constraint rules',
+  ];
+
+  if (engine === 'claude-code') {
+    lines.push(
+      '.claude/           Claude Code adapter',
+      '  settings.json    Permissions, MCP servers, hooks',
+      '  commands/        Slash commands for each stage',
+      '  hooks/           Gate and constraint hook scripts',
+      'CLAUDE.md          Entry document',
+    );
+  } else if (engine === 'cursor') {
+    lines.push(
+      '.cursor/           Cursor adapter',
+      '  rules/           Stage rules (.mdc files)',
+      '  mcp.json         MCP server configuration',
+      '.cursorrules       Entry document',
+    );
+  } else if (engine === 'codex') {
+    lines.push(
+      '.codex/            Codex adapter',
+      '  skills/          Skill definitions per stage',
+      '  hooks/           Hook scripts',
+      '  hooks.json       Hook registrations',
+      '  config.toml      Codex configuration',
+      'AGENTS.md          Entry document',
+    );
+  } else {
+    lines.push(
+      'AI_CONFIG.md       Entry document',
+    );
+  }
+
+  return lines.join('\n');
+}
+
 function generateArchitectureDoc(config: ProjectConfig): OutputFile {
   const { architecture, flow } = config;
 
   const enabledStages = flow.sprint
     .filter((s) => s.enabled)
     .sort((a, b) => a.order - b.order)
-    .map((s) => `- **${s.name}** (order ${s.order}): roles ${s.roles.join(', ')}`)
+    .map((s) => {
+      const configHint = s.stageConfig ? ` — see config for details` : '';
+      return `- **${s.name}** (order ${s.order}): roles ${s.roles.join(', ')}${configHint}`;
+    })
     .join('\n');
+
+  const fileStructure = generateFileStructureTree(config);
 
   const content = `# Architecture
 
@@ -197,174 +145,13 @@ ${enabledStages}
 - **Session Recovery**: ${architecture.session.recoveryStrategy}
 - **Credential Policy**: ${architecture.sandbox.credentialPolicy}
 - **Constraint Rules**: ${flow.constraints.length} configured
+
+## File Structure
+
+\`\`\`
+${fileStructure}
+\`\`\`
 `;
 
   return { path: 'docs/plans/ARCHITECTURE.md', content };
-}
-
-// ---------------------------------------------------------------------------
-// Framework boilerplate
-// ---------------------------------------------------------------------------
-
-function generateBoilerplate(config: ProjectConfig): OutputFile[] {
-  const { framework } = config.project.techStack;
-  const files: OutputFile[] = [];
-
-  if (framework === 'next') {
-    files.push({
-      path: 'src/app/layout.tsx',
-      content: `import type { Metadata } from 'next';
-
-export const metadata: Metadata = {
-  title: '${config.project.name}',
-  description: '${config.project.description}',
-};
-
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
-  return (
-    <html lang="en">
-      <body>{children}</body>
-    </html>
-  );
-}
-`,
-    });
-    files.push({
-      path: 'src/app/page.tsx',
-      content: `export default function Home() {
-  return (
-    <main>
-      <h1>${config.project.name}</h1>
-      <p>${config.project.description}</p>
-    </main>
-  );
-}
-`,
-    });
-  } else if (framework === 'react') {
-    files.push({
-      path: 'src/main.tsx',
-      content: `import { StrictMode } from 'react';
-import { createRoot } from 'react-dom/client';
-import App from './App';
-
-createRoot(document.getElementById('root')!).render(
-  <StrictMode>
-    <App />
-  </StrictMode>,
-);
-`,
-    });
-    files.push({
-      path: 'src/App.tsx',
-      content: `export default function App() {
-  return (
-    <div>
-      <h1>${config.project.name}</h1>
-      <p>${config.project.description}</p>
-    </div>
-  );
-}
-`,
-    });
-  } else if (framework === 'vue') {
-    files.push({
-      path: 'src/main.ts',
-      content: `import { createApp } from 'vue';
-import App from './App.vue';
-
-createApp(App).mount('#root');
-`,
-    });
-    files.push({
-      path: 'src/App.vue',
-      content: `<template>
-  <div>
-    <h1>${config.project.name}</h1>
-    <p>${config.project.description}</p>
-  </div>
-</template>
-`,
-    });
-  } else if (framework === 'flutter') {
-    files.push({
-      path: 'lib/main.dart',
-      content: `import 'package:flutter/material.dart';
-
-void main() {
-  runApp(const MyApp());
-}
-
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: '${config.project.name}',
-      home: const HomePage(),
-    );
-  }
-}
-
-class HomePage extends StatelessWidget {
-  const HomePage({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('${config.project.name}'),
-      ),
-      body: const Center(
-        child: Text('${config.project.description}'),
-      ),
-    );
-  }
-}
-`,
-    });
-  }
-
-  // custom – skip boilerplate
-
-  return files;
-}
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-function getInstallCommand(pm: string): string {
-  switch (pm) {
-    case 'npm':
-      return 'npm install';
-    case 'yarn':
-      return 'yarn install';
-    case 'pnpm':
-      return 'pnpm install';
-    case 'bun':
-      return 'bun install';
-    default:
-      return 'npm install';
-  }
-}
-
-function getDevCommand(framework: string): string {
-  switch (framework) {
-    case 'next':
-    case 'react':
-    case 'vue':
-      return 'npm run dev';
-    case 'flutter':
-      return 'flutter run';
-    case 'custom':
-      return 'npm run dev';
-    default:
-      return 'npm run dev';
-  }
 }
