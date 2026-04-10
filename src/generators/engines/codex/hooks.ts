@@ -5,12 +5,12 @@ import type { ProjectConfig, OutputFile } from '@/types';
 const PRE_BASH_POLICY_SCRIPT = `#!/usr/bin/env bash
 # pre-bash-policy.sh — Block dangerous commands before execution
 # Reads stdin JSON, extracts the command, and blocks destructive operations.
-# Exit 0 = allow, exit 1 = block.
+# Exit 0 = allow, exit 2 = block (Codex convention).
 
-set -euo pipefail
+set -uo pipefail
 
-INPUT=$(cat)
-COMMAND=$(echo "$INPUT" | grep -o '"command":"[^"]*"' | head -1 | sed 's/"command":"//;s/"//')
+INPUT=$(cat || true)
+COMMAND=$(echo "$INPUT" | grep -o '"command":"[^"]*"' | head -1 | sed 's/"command":"//;s/"//' || true)
 
 if [ -z "$COMMAND" ]; then
   exit 0
@@ -35,7 +35,7 @@ PATTERNS=(
 for PATTERN in "\${PATTERNS[@]}"; do
   if echo "$LOWER" | grep -q "$PATTERN"; then
     echo "BLOCKED: Command matches dangerous pattern: $PATTERN" >&2
-    exit 1
+    exit 2
   fi
 done
 
@@ -44,16 +44,17 @@ exit 0
 
 const STOP_CONTINUE_SCRIPT = `#!/usr/bin/env bash
 # stop-continue.sh — Verify docs/ directory exists before stopping
-# Exit 0 = pass, exit 1 = block.
+# Exit 0 = pass (with JSON on stdout), exit 2 = block with reason on stderr.
 
-set -euo pipefail
+set -uo pipefail
 
 if [ ! -d "docs" ]; then
   echo "BLOCKED: docs/ directory does not exist. Create it before stopping." >&2
-  exit 1
+  exit 2
 fi
 
-echo "Stop gate passed: docs/ directory exists."
+# Codex Stop hook requires JSON on stdout to continue
+echo '{"decision":"block","reason":"docs/ exists, sprint artifacts verified"}'
 exit 0
 `;
 

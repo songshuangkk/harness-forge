@@ -46,9 +46,9 @@ export function generateCodexConfig(config: ProjectConfig): OutputFile {
   const approvalPolicy = APPROVAL_POLICY_MAP[sandbox.credentialPolicy];
 
   const sections: string[] = [
-    `model: o3`,
-    `sandbox_mode: ${sandboxMode}`,
-    `approval_policy: ${approvalPolicy}`,
+    `model = "o3"`,
+    `sandbox_mode = "${sandboxMode}"`,
+    `approval_policy = "${approvalPolicy}"`,
     '',
     '[features]',
     'codex_hooks = true',
