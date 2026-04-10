@@ -40,12 +40,12 @@ const SECRET_CHECK_SCRIPT = `#!/usr/bin/env bash
 # Reads stdin JSON, checks for common secret patterns.
 # Exit 0 = clean, exit 2 = blocked.
 
-set -euo pipefail
+set -uo pipefail
 
-INPUT=$(cat)
+INPUT=$(cat || true)
 
 # Extract file content from Write/Edit tool input
-CONTENT=$(echo "$INPUT" | grep -o '"content":"[^"]*"' | head -1 | sed 's/"content":"//;s/"$//')
+CONTENT=$(echo "$INPUT" | grep -o '"content":"[^"]*"' | head -1 | sed 's/"content":"//;s/"$//' || true)
 
 if [ -z "$CONTENT" ]; then
   exit 0

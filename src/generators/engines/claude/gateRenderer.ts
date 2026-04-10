@@ -40,8 +40,8 @@ function renderCommandBlocklist(
 ): string {
   const patternLines = patterns.map((p) => `  "${p}"`).join('\n');
   return `# Block dangerous commands
-INPUT=$(cat)
-COMMAND=$(echo "$INPUT" | grep -o '"command":"[^"]*"' | head -1 | sed 's/"command":"//;s/"//')
+INPUT=$(cat || true)
+COMMAND=$(echo "$INPUT" | grep -o '"command":"[^"]*"' | head -1 | sed 's/"command":"//;s/"//' || true)
 
 if [ -z "$COMMAND" ]; then
   exit 0
@@ -91,7 +91,7 @@ export function renderGateScript(
       '# Reads stdin JSON, extracts the command, and blocks destructive operations.',
       '# Exit 0 = allow, exit 2 = block.',
       '',
-      'set -euo pipefail',
+      'set -uo pipefail',
       '',
       body,
     ].join('\n');
@@ -146,7 +146,7 @@ export function renderGateScript(
     `# Stages: ${stages}`,
     '# Exit 0 = pass, exit 2 = block.',
     '',
-    'set -euo pipefail',
+    'set -uo pipefail',
     '',
     'BLOCKED=0',
     '',

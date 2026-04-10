@@ -43,24 +43,10 @@ export function buildClaudeHookRegistrations(
     ],
   });
 
-  // Register stage gate hooks dynamically
-  const gateChecks = buildGateChecks(config);
-  for (const gateName of gateChecks.keys()) {
-    if (gateName === 'constraint-check') continue; // already registered above
-
-    if (!registrations['PreToolUse']) {
-      registrations['PreToolUse'] = [];
-    }
-    registrations['PreToolUse'].push({
-      matcher: 'Bash',
-      hooks: [
-        {
-          type: 'command',
-          command: gateScriptPath(gateName),
-        },
-      ],
-    });
-  }
+  // Note: Stage gate scripts (build-gate, review-gate, ship-gate) are
+  // generated as files but NOT registered as auto-hooks. They check for
+  // artifacts that may not exist yet, which would block ALL commands.
+  // Users invoke them manually: bash .claude/hooks/<gate>.sh
 
   // Secret detection hook (vault credential policy)
   if (hasSecretCheck(config)) {
