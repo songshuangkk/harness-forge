@@ -112,7 +112,7 @@ function TemplatePreviewCard({ template }: { template: TemplatePreset }) {
   const t = TEMPLATE_THEME[template.id];
 
   return (
-    <Link href="/wizard" className="group">
+    <Link href={`/wizard?template=${template.id}`} className="group">
       <div
         className="template-card flex h-full flex-col rounded-xl p-6 transition-all"
         style={{

@@ -1,6 +1,7 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
+import { Suspense, useEffect } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -13,6 +14,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useProjectConfig } from '@/store/useProjectConfig';
+import { templates } from '@/templates';
 
 const STEP_PATHS = [
   '/wizard',
@@ -32,6 +34,25 @@ const LANGUAGES = [
   { value: 'dart', label: 'Dart' },
 ] as const;
 
+function TemplateLoader() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const loadTemplate = useProjectConfig((s) => s.loadTemplate);
+
+  useEffect(() => {
+    const templateId = searchParams.get('template');
+    if (templateId) {
+      const template = templates.find((t) => t.id === templateId);
+      if (template) {
+        loadTemplate(template.config);
+        router.replace('/wizard');
+      }
+    }
+  }, [searchParams, loadTemplate, router]);
+
+  return null;
+}
+
 export default function ProjectBasicsPage() {
   const router = useRouter();
   const setCurrentStep = useProjectConfig((s) => s.setCurrentStep);
@@ -44,8 +65,12 @@ export default function ProjectBasicsPage() {
   };
 
   return (
-    <div className="space-y-10">
-      {/* Section header */}
+    <>
+      <Suspense>
+        <TemplateLoader />
+      </Suspense>
+      <div className="space-y-10">
+        {/* Section header */}
       <div>
         <h1 className="font-heading text-3xl font-bold tracking-tight text-ink">
           Project Basics
@@ -155,5 +180,6 @@ export default function ProjectBasicsPage() {
         </button>
       </div>
     </div>
+    </>
   );
 }
