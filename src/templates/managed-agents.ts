@@ -13,9 +13,15 @@ export const managedAgents: TemplatePreset = {
     },
     flow: {
       sprint: [
-        { id: 'plan', name: 'plan', order: 0, enabled: true, roles: ['ceo'], gates: ['Agent instructions defined', 'Tool permissions configured'] },
-        { id: 'build', name: 'build', order: 1, enabled: true, roles: ['eng-manager'], gates: ['Agent session started', 'All tool calls validated'] },
-        { id: 'ship', name: 'ship', order: 2, enabled: true, roles: ['release'], gates: ['Session replay verified', 'Artifacts stored in vault'] },
+        { id: 'plan', name: 'plan', order: 0, enabled: true, roles: ['ceo'],
+          gates: ['Agent instructions defined', 'Tool permissions configured'],
+          stageConfig: { reviewTypes: ['ceo-review', 'eng-review'], taskStructure: 'structured' } },
+        { id: 'build', name: 'build', order: 1, enabled: true, roles: ['eng-manager'],
+          gates: ['Agent session started', 'All tool calls validated'],
+          stageConfig: { executionStrategy: 'subagent-parallel', tddMode: 'enforced' } },
+        { id: 'ship', name: 'ship', order: 2, enabled: true, roles: ['release'],
+          gates: ['Session replay verified', 'Artifacts stored in vault'],
+          stageConfig: { pipeline: ['run-tests', 'create-pr', 'deploy'], versionStrategy: 'semver-patch', deploymentTargets: ['production'] } },
       ],
       roles: [
         { id: 'ceo', label: 'Agent Operator', description: 'Configures agent instructions and monitors autonomous execution.', defaultConstraints: ['Must review agent output before proceeding'] },

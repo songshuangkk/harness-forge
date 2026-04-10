@@ -1,13 +1,14 @@
 'use client';
 
 import { cn } from '@/lib/utils';
+import { Check } from 'lucide-react';
 
 const STEPS = [
-  { label: 'Project', path: '/wizard' },
-  { label: 'Architecture', path: '/wizard/architecture' },
-  { label: 'Flow', path: '/wizard/flow' },
-  { label: 'Integration', path: '/wizard/integration' },
-  { label: 'Generate', path: '/wizard/generate' },
+  { label: 'Project', short: '01' },
+  { label: 'Architecture', short: '02' },
+  { label: 'Flow', short: '03' },
+  { label: 'Integration', short: '04' },
+  { label: 'Generate', short: '05' },
 ];
 
 interface StepIndicatorProps {
@@ -17,33 +18,53 @@ interface StepIndicatorProps {
 
 export function StepIndicator({ currentStep, onStepClick }: StepIndicatorProps) {
   return (
-    <nav className="flex items-center justify-center gap-2 py-6 overflow-x-auto flex-nowrap">
-      {STEPS.map((step, index) => (
-        <button
-          key={step.path}
-          onClick={() => onStepClick(index)}
-          className={cn(
-            'flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors',
-            index === currentStep
-              ? 'bg-primary text-primary-foreground'
-              : index < currentStep
-                ? 'bg-muted text-muted-foreground hover:bg-muted/80'
-                : 'text-muted-foreground hover:bg-muted/50'
-          )}
-        >
-          <span
-            className={cn(
-              'flex h-6 w-6 items-center justify-center rounded-full text-xs',
-              index === currentStep
-                ? 'bg-primary-foreground text-primary'
-                : 'bg-muted-foreground/20'
-            )}
+    <nav className="flex items-center gap-0 py-6">
+      {STEPS.map((step, index) => {
+        const isActive = index === currentStep;
+        const isCompleted = index < currentStep;
+
+        return (
+          <button
+            key={step.label}
+            onClick={() => onStepClick(index)}
+            className="group flex items-center"
           >
-            {index + 1}
-          </span>
-          {step.label}
-        </button>
-      ))}
+            {/* Step node */}
+            <div className="flex items-center gap-2.5">
+              <span
+                className={cn(
+                  'flex h-7 w-7 items-center justify-center rounded-md text-xs font-semibold transition-all',
+                  isActive && 'copper-glow bg-copper text-primary-foreground',
+                  isCompleted && 'bg-copper/15 text-copper',
+                  !isActive && !isCompleted && 'bg-secondary text-ink-muted'
+                )}
+              >
+                {isCompleted ? <Check className="size-3.5" strokeWidth={2.5} /> : step.short}
+              </span>
+              <span
+                className={cn(
+                  'text-sm font-medium transition-colors hidden sm:inline',
+                  isActive && 'text-ink',
+                  isCompleted && 'text-ink-secondary',
+                  !isActive && !isCompleted && 'text-ink-muted'
+                )}
+              >
+                {step.label}
+              </span>
+            </div>
+
+            {/* Connector line */}
+            {index < STEPS.length - 1 && (
+              <div
+                className={cn(
+                  'mx-3 h-px w-8 transition-colors md:w-12',
+                  index < currentStep ? 'bg-copper/40' : 'bg-border'
+                )}
+              />
+            )}
+          </button>
+        );
+      })}
     </nav>
   );
 }

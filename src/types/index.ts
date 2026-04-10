@@ -1,18 +1,15 @@
-export type Framework = 'next' | 'react' | 'vue' | 'flutter' | 'custom';
-export type Language = 'typescript' | 'javascript' | 'python' | 'dart' | 'go';
-export type PackageManager = 'npm' | 'yarn' | 'pnpm' | 'bun';
+export type Language = 'typescript' | 'javascript' | 'python' | 'dart' | 'go' | 'java' | 'rust';
 
 export type SessionStorage = 'local-file' | 'git-based' | 'custom';
 export type RecoveryStrategy = 'last-event' | 'last-checkpoint' | 'custom';
-export type AIEngine = 'claude-code' | 'codex' | 'custom';
+export type AIEngine = 'claude-code' | 'codex' | 'cursor' | 'custom';
 export type ContextStrategy = 'compaction' | 'sliding-window' | 'full';
 export type SandboxType = 'local' | 'docker' | 'remote';
 export type CredentialPolicy = 'vault' | 'bundled' | 'none';
 
 export interface TechStack {
-  framework: Framework;
   language: Language;
-  packageManager: PackageManager;
+  stackDescription: string;
 }
 
 export interface ProjectInfo {
@@ -56,6 +53,76 @@ export interface ArchitectureConfig {
 export type StageName = 'think' | 'plan' | 'build' | 'review' | 'test' | 'ship' | 'reflect';
 export type RoleName = 'ceo' | 'designer' | 'eng-manager' | 'qa' | 'security' | 'release' | 'doc-engineer';
 
+// ── Stage-specific configuration interfaces ──
+// Synthesized from Anthropic Managed Agents + GStack + Superpowers
+// Each stage config has: Architecture (how 3-layer infra applies) + Methodology (approach) + Roles
+
+/** Think — Problem redefinition via forcing questions */
+export interface ThinkConfig {
+  /** Interrogation dimensions to cover */
+  dimensions: string[];
+  /** Analysis depth */
+  depth: 'quick' | 'deep';
+}
+
+/** Plan — Multi-role architecture review */
+export interface PlanConfig {
+  /** Which review types to run */
+  reviewTypes: string[];
+  /** How structured the task breakdown must be */
+  taskStructure: 'simple' | 'structured';
+}
+
+/** Build — Implementation strategy */
+export interface BuildConfig {
+  /** Execution strategy */
+  executionStrategy: 'single-agent' | 'subagent-parallel';
+  /** TDD enforcement level */
+  tddMode: 'enforced' | 'optional';
+}
+
+/** Review — Multi-dimensional quality audit */
+export interface ReviewConfig {
+  /** Review dimensions to check */
+  reviewDimensions: string[];
+  /** Auto-fix policy */
+  autoFix: 'auto' | 'report-only';
+  /** Minimum severity to report */
+  severityThreshold: 'all' | 'critical-major' | 'critical-only';
+}
+
+/** Test — Evidence-based verification */
+export interface TestConfig {
+  /** Test methodologies */
+  testMethods: string[];
+  /** Coverage target percentage */
+  coverageTarget: number;
+  /** Test type categories */
+  testTypes: string[];
+  /** Execution environment */
+  environment: string;
+}
+
+/** Ship — Release pipeline */
+export interface ShipConfig {
+  /** Pipeline steps to include */
+  pipeline: string[];
+  /** Semantic versioning strategy */
+  versionStrategy: string;
+  /** Deployment targets */
+  deploymentTargets: string[];
+}
+
+/** Reflect — Retrospective with learning */
+export interface ReflectConfig {
+  /** Retrospective dimensions */
+  dimensions: string[];
+  /** Whether to persist learnings across sessions */
+  persistLearning: 'project-memory' | 'session-only';
+}
+
+export type StageSpecificConfig = ThinkConfig | PlanConfig | BuildConfig | ReviewConfig | TestConfig | ShipConfig | ReflectConfig;
+
 export interface SprintStage {
   id: string;
   name: StageName;
@@ -64,6 +131,7 @@ export interface SprintStage {
   roles: RoleName[];
   gates: string[];
   outputFormat?: string;
+  stageConfig?: StageSpecificConfig;
 }
 
 export interface RoleConfig {

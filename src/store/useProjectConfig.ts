@@ -12,9 +12,8 @@ const defaultConfig: ProjectConfig = {
     name: '',
     description: '',
     techStack: {
-      framework: 'next',
       language: 'typescript',
-      packageManager: 'pnpm',
+      stackDescription: '',
     },
     gitInit: true,
   },
