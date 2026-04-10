@@ -1,4 +1,5 @@
-import type { ProjectConfig, OutputFile, AIEngine, Language } from '@/types';
+import type { ProjectConfig, OutputFile, AIEngine, Language, RoleName } from '@/types';
+import { getRolePrompt } from '@/generators/core/rolePrompts';
 
 // ── Engine-to-config-filename mapping (shared across generators) ──
 
@@ -41,21 +42,34 @@ function generateTechStack(config: ProjectConfig): string {
 function generateArchitecture(config: ProjectConfig): string {
   const { session, harness, sandbox } = config.architecture;
 
-  const paragraph = `This project follows a three-layer agent architecture: ` +
-    `**Session** (event log stored via ${session.storage}, ${session.eventRetention} events retained, recovery via ${session.recoveryStrategy}), ` +
-    `**Harness** (${harness.engine} engine, ${harness.contextStrategy} context strategy, ${harness.maxRetries} max retries), ` +
-    `and **Sandbox** (${sandbox.type} execution, ${sandbox.credentialPolicy} credential policy).`;
-
-  return [
+  const lines: string[] = [
     '## Architecture',
     '',
-    paragraph,
+    `This project follows a three-layer agent architecture: ` +
+      `**Session** (${session.storage}), **Harness** (${harness.engine}), **Sandbox** (${sandbox.type}).`,
     '',
     `- **Session**: ${session.storage} storage, ${session.eventRetention} events, ${session.recoveryStrategy} recovery`,
     `- **Harness**: ${harness.engine}, ${harness.contextStrategy} context, ${harness.maxRetries} retries`,
     `- **Sandbox**: ${sandbox.type}, ${sandbox.credentialPolicy} credentials`,
-    '',
-  ].join('\n');
+  ];
+
+  // Session commands
+  lines.push('', '### Session Commands', '');
+  lines.push('- `bash .claude/scripts/session-init.sh` — Initialize session storage');
+  lines.push('- `bash .claude/scripts/session-save.sh` — Save event to session log');
+  if (session.storage === 'git-based' || session.storage === 'custom') {
+    lines.push('- `bash .claude/scripts/session-recover.sh` — Recover session state');
+  }
+
+  // Sandbox commands
+  if (sandbox.type === 'docker') {
+    lines.push('', '### Sandbox Commands', '');
+    lines.push('- `docker compose -f docker-compose.sandbox.yml run sandbox <cmd>` — Run command in sandbox');
+    lines.push('- `docker compose -f docker-compose.sandbox.yml build` — Build sandbox image');
+  }
+
+  lines.push('');
+  return lines.join('\n');
 }
 
 function generateSprintFlow(config: ProjectConfig): string {
@@ -75,6 +89,21 @@ function generateSprintFlow(config: ProjectConfig): string {
     .map((s) => `- \`/${s.name}\` \u2014 ${s.name.charAt(0).toUpperCase() + s.name.slice(1)}`)
     .join('\n');
 
+  // Role Assignments
+  const configuredRoles = config.flow.roles;
+  const roleAssignmentLines = enabledStages
+    .filter((s) => s.roles.length > 0)
+    .map((s) => {
+      const stageLabel = s.name.charAt(0).toUpperCase() + s.name.slice(1);
+      const roleLabels = s.roles.map((r: RoleName) => getRolePrompt(r, configuredRoles).label);
+      return `- ${stageLabel}: ${roleLabels.join(', ')}`;
+    })
+    .join('\n');
+
+  const roleSection = roleAssignmentLines
+    ? ['', '### Role Assignments', '', roleAssignmentLines, ''].join('\n')
+    : '';
+
   return [
     '## Sprint Flow',
     '',
@@ -85,7 +114,7 @@ function generateSprintFlow(config: ProjectConfig): string {
     '### Slash Commands',
     '',
     commandList,
-    '',
+    roleSection,
   ].join('\n');
 }
 
@@ -142,9 +171,35 @@ function generateFileStructure(config: ProjectConfig): string {
     .filter((s) => s.enabled)
     .sort((a, b) => a.order - b.order);
 
-  const stageFiles = enabledStages
-    .map((s) => `      ${s.name}.md`)
-    .join('\n');
+  // Collect role sub-commands for plan and review stages
+  const roleSubCommands: string[] = [];
+  for (const stage of enabledStages) {
+    if ((stage.name === 'plan' || stage.name === 'review') && stage.roles.length > 1) {
+      for (const roleId of stage.roles) {
+        const slug = roleId.replace(/[^a-z0-9]+/g, '-');
+        roleSubCommands.push(`      ${stage.name}:${slug}-review.md`);
+      }
+    }
+  }
+
+  // Sandbox files
+  const sandboxFiles: string[] = [];
+  if (config.architecture.sandbox.type === 'docker') {
+    sandboxFiles.push('  docker-compose.sandbox.yml');
+    sandboxFiles.push('  Dockerfile.sandbox');
+  }
+
+  // Hook files
+  const hookFiles: string[] = ['      constraint-check.sh'];
+  if (config.architecture.sandbox.credentialPolicy === 'vault') {
+    hookFiles.push('      secret-check.sh');
+  }
+
+  // Session files
+  const sessionFiles: string[] = ['      session-init.sh', '      session-save.sh'];
+  if (config.architecture.session.storage !== 'local-file') {
+    sessionFiles.push('      session-recover.sh');
+  }
 
   return [
     '## File Structure',
@@ -152,12 +207,16 @@ function generateFileStructure(config: ProjectConfig): string {
     '```',
     `${config.project.name || 'project'}/`,
     '  CLAUDE.md',
+    ...sandboxFiles,
     '  .claude/',
     '    settings.json',
     '    commands/',
     ...enabledStages.map((s) => `      ${s.name}.md`),
+    ...roleSubCommands,
     '    hooks/',
-    '      constraint-check.sh',
+    ...hookFiles,
+    '    scripts/',
+    ...sessionFiles,
     '  .harness/',
     '    config.yaml',
     '    roles/',

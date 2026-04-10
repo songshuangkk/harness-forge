@@ -1,4 +1,5 @@
 import type { ProjectConfig, OutputFile, RoleConfig, RoleName } from '@/types';
+import { getRolePrompt } from './rolePrompts';
 
 // ── Fallback role definitions when not in config.flow.roles ──
 
@@ -89,6 +90,7 @@ function getRoleDefinition(roleId: string, configuredRoles: RoleConfig[]): RoleC
 }
 
 function generateRoleMarkdown(role: RoleConfig): string {
+  const prompt = getRolePrompt(role.id, []);
   const lines: string[] = [
     `# ${role.label}`,
     '',
@@ -104,6 +106,22 @@ function generateRoleMarkdown(role: RoleConfig): string {
     }
   } else {
     lines.push('None configured.');
+  }
+
+  // Review Focus
+  const focusItems = role.reviewFocus ?? prompt.reviewFocus;
+  if (focusItems.length > 0) {
+    lines.push('', '## Review Focus', '');
+    for (const f of focusItems) {
+      lines.push(`- ${f}`);
+    }
+  }
+
+  // System Prompt
+  const systemPrompt = role.systemPrompt ?? prompt.systemPrompt;
+  if (systemPrompt) {
+    lines.push('', '## System Prompt', '');
+    lines.push(`> ${systemPrompt}`);
   }
 
   lines.push('');

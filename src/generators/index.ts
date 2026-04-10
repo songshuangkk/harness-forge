@@ -11,6 +11,8 @@ import { generateClaudeMd } from './engines/claude/claudeMd';
 import { generateClaudeCommands } from './engines/claude/commands';
 import { generateClaudeHooks } from './engines/claude/hooks';
 import { generateClaudeSettings } from './engines/claude/settings';
+import { generateSessionScripts } from './engines/claude/sessionScripts';
+import { generateSandboxScripts } from './engines/claude/sandboxScripts';
 
 // Cursor engine adapter
 import { generateCursorrules } from './engines/cursor/cursorrules';
@@ -44,6 +46,8 @@ export function generateAll(config: ProjectConfig): OutputFile[] {
       files.push(...generateClaudeCommands(config));
       files.push(...generateClaudeHooks(config));
       files.push(generateClaudeSettings(config));
+      files.push(...generateSessionScripts(config));
+      files.push(...generateSandboxScripts(config));
       break;
 
     case 'cursor':

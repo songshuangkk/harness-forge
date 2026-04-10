@@ -113,6 +113,14 @@ export interface ShipConfig {
   deploymentTargets: string[];
 }
 
+/** 阶段输出的具体产物，驱动 gate 检查 */
+export interface OutputArtifact {
+  path: string;
+  description: string;
+  verification: 'exists' | 'non-empty' | 'contains-section';
+  sectionMarker?: string;
+}
+
 /** Reflect — Retrospective with learning */
 export interface ReflectConfig {
   /** Retrospective dimensions */
@@ -131,6 +139,8 @@ export interface SprintStage {
   roles: RoleName[];
   gates: string[];
   outputFormat?: string;
+  /** Concrete artifacts this stage must produce (drives gate generation) */
+  outputArtifacts?: OutputArtifact[];
   stageConfig?: StageSpecificConfig;
 }
 
@@ -139,9 +149,21 @@ export interface RoleConfig {
   label: string;
   description: string;
   defaultConstraints: string[];
+  /** Dimensions this role focuses on when reviewing */
+  reviewFocus?: string[];
+  /** Behavioral system prompt for this role */
+  systemPrompt?: string;
 }
 
 export type ConstraintType = 'gate' | 'checklist' | 'output-requirement';
+
+/** 约束的结构化执行参数，驱动 hook 生成 */
+export interface ConstraintEnforcement {
+  checkType: 'file-exists' | 'file-contains' | 'command-blocklist';
+  targets?: string[];
+  pattern?: string;
+  message?: string;
+}
 
 export interface ConstraintRule {
   id: string;
@@ -149,6 +171,7 @@ export interface ConstraintRule {
   type: ConstraintType;
   description: string;
   enforced: boolean;
+  enforcement?: ConstraintEnforcement;
 }
 
 export interface FlowConfig {

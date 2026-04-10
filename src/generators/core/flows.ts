@@ -1,4 +1,5 @@
 import type { ProjectConfig, OutputFile, StageName, StageSpecificConfig, ThinkConfig, PlanConfig, BuildConfig, ReviewConfig, TestConfig, ShipConfig, ReflectConfig, RoleName } from '@/types';
+import { getStageArtifacts } from './stageArtifacts';
 
 // ── Stage metadata (descriptions, inputs, outputs) ──
 
@@ -189,6 +190,20 @@ export function generateCoreFlows(config: ProjectConfig): OutputFile[] {
       if (configBullets.length > 0) {
         lines.push('', '## Configuration', '');
         lines.push(...configBullets);
+      }
+    }
+
+    // Output Artifacts
+    const artifacts = getStageArtifacts(stage);
+    if (artifacts.length > 0) {
+      lines.push('', '## Output Artifacts', '');
+      for (const artifact of artifacts) {
+        const verLabel = artifact.verification === 'contains-section'
+          ? `must contain \`${artifact.sectionMarker}\``
+          : artifact.verification === 'non-empty'
+            ? 'must be non-empty'
+            : 'must exist';
+        lines.push(`- \`${artifact.path}\` — ${artifact.description} (${verLabel})`);
       }
     }
 

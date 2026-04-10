@@ -36,16 +36,25 @@ function buildMcpServers(
 // ── Main generator ──
 
 export function generateClaudeSettings(config: ProjectConfig): OutputFile {
+  // Build permission rules based on sandbox config
+  const allowRules = [
+    'Bash(npm run *)',
+    'Bash(npx *)',
+    'Bash(git *)',
+    'Read',
+    'Write',
+    'Edit',
+  ];
+
+  // Docker sandbox: allow docker compose commands
+  if (config.architecture.sandbox.type === 'docker') {
+    allowRules.push('Bash(docker compose *)');
+    allowRules.push('Bash(docker build *)');
+  }
+
   const settings = {
     permissions: {
-      allow: [
-        'Bash(npm run *)',
-        'Bash(npx *)',
-        'Bash(git *)',
-        'Read',
-        'Write',
-        'Edit',
-      ],
+      allow: allowRules,
       deny: [
         'Bash(rm -rf *)',
         'Bash(DROP *)',

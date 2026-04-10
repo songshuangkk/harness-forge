@@ -24,6 +24,12 @@ interface ConstraintEntry {
   type: string;
   description: string;
   enforced: boolean;
+  enforcement?: {
+    checkType: string;
+    targets?: string[];
+    pattern?: string;
+    message?: string;
+  };
 }
 
 function serializeConstraintList(entries: ConstraintEntry[]): string {
@@ -35,6 +41,22 @@ function serializeConstraintList(entries: ConstraintEntry[]): string {
     lines.push(`  type: ${yamlValue(entry.type)}`);
     lines.push(`  description: ${yamlValue(entry.description)}`);
     lines.push(`  enforced: ${yamlValue(entry.enforced)}`);
+    if (entry.enforcement) {
+      lines.push(`  enforcement:`);
+      lines.push(`    checkType: ${yamlValue(entry.enforcement.checkType)}`);
+      if (entry.enforcement.targets) {
+        lines.push(`    targets:`);
+        for (const t of entry.enforcement.targets) {
+          lines.push(`      - ${yamlValue(t)}`);
+        }
+      }
+      if (entry.enforcement.pattern) {
+        lines.push(`    pattern: ${yamlValue(entry.enforcement.pattern)}`);
+      }
+      if (entry.enforcement.message) {
+        lines.push(`    message: ${yamlValue(entry.enforcement.message)}`);
+      }
+    }
   }
   return lines.join('\n') + '\n';
 }
@@ -61,6 +83,7 @@ export function generateCoreConstraints(config: ProjectConfig): OutputFile[] {
       type: c.type,
       description: c.description,
       enforced: c.enforced,
+      enforcement: c.enforcement,
     });
     grouped.set(c.type, list);
   }
