@@ -121,6 +121,24 @@ function generateArchitectureDoc(config: ProjectConfig): OutputFile {
 
   const content = `# Architecture
 
+## Runtime Architecture (Brain / Log / Hands)
+
+The generated scaffolding drives the AI agent through three cooperating layers:
+
+| Layer | Responsibility | Implementation |
+|-------|---------------|----------------|
+| **Brain** | Decision-making, role switching, stage advancement | \`CLAUDE.md\` → system prompt loaded at startup; references \`.harness/roles/\`, \`.harness/flows/\`, \`.harness/constraints/\` |
+| **Log** | Runtime event recording, retrospective data | \`PostToolUse\` hooks append to \`.harness/log/events.jsonl\`; Reflect stage reads this for data-driven retrospectives |
+| **Hands** | Tool execution with permission guards | \`PreToolUse\` hooks enforce constraint blocks and role permissions; gate scripts verify stage artifacts before transitions |
+
+### How it runs
+
+1. **Startup**: Claude Code loads \`CLAUDE.md\` as system prompt, which includes the Harness Protocol
+2. **Stage entry**: Agent declares stage + role, writes \`.harness/current-stage\` and \`.harness/current-role\`, reads role definition
+3. **Execution**: Agent performs tasks; hooks record events (Log) and enforce permissions (Hands)
+4. **Stage exit**: Agent reads constraints, verifies gates, declares completion, advances to next stage
+5. **Reflect**: Agent reads \`.harness/log/events.jsonl\` for data-driven retrospective
+
 ## Agent Architecture
 
 The project follows a three-layer agent architecture:

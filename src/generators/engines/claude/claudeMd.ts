@@ -26,6 +26,74 @@ const LANGUAGE_LABELS: Record<Language, string> = {
   dart: 'Dart',
 };
 
+// ── Harness Protocol generator (P0: Brain 层接线) ──
+
+function generateHarnessProtocol(config: ProjectConfig): string {
+  const enabledStages = config.flow.sprint
+    .filter((s) => s.enabled)
+    .sort((a, b) => a.order - b.order);
+
+  if (enabledStages.length === 0) return '';
+
+  const configuredRoles = config.flow.roles;
+
+  // Stage → role mapping (dynamic from config)
+  const roleMappingLines = enabledStages
+    .filter((s) => s.roles.length > 0)
+    .map((s) => {
+      const stageLabel = s.name.charAt(0).toUpperCase() + s.name.slice(1);
+      const roleLabels = s.roles.map((r: RoleName) => getRolePrompt(r, configuredRoles).label);
+      return `${stageLabel} → ${roleLabels.join(' + ')}`;
+    })
+    .join('\n');
+
+  // Build stage TDD check (only when tddMode is enforced)
+  const buildStage = enabledStages.find((s) => s.name === 'build');
+  const buildConfig = buildStage?.stageConfig as { tddMode?: string } | undefined;
+  const tddBlock = buildConfig?.tddMode === 'enforced'
+    ? `
+### Build 阶段完成条件（必须全部满足）
+
+1. 读取 \`.harness/constraints/\` 下所有约束文件
+2. 验证 coverage_min：运行测试并确认覆盖率达标
+3. 验证 test_must_pass：所有指定类型的测试必须全部通过
+4. 验证 no_skip_allowed：不允许跳过任何测试用例
+5. 以上全部通过后，才能声明 Build 阶段完成
+`
+    : '';
+
+  // Reflect stage log reading
+  const hasReflect = enabledStages.some((s) => s.name === 'reflect');
+  const reflectNote = hasReflect
+    ? '- Reflect 阶段必须读取 \`.harness/log/events.jsonl\`（如存在），基于数据生成回顾报告，而非纯文字反思'
+    : '';
+
+  return [
+    '## Harness 运行协议',
+    '',
+    '### 文件引用',
+    '',
+    '- **角色定义**：进入每个阶段前，读取 `.harness/roles/{当前阶段角色}.md` 作为本阶段的行为约束',
+    '- **流程节点**：读取 `.harness/flows/sprint.md` 作为 Sprint 执行顺序的权威来源',
+    '- **质量约束**：每步完成后读取 `.harness/constraints/` 下的约束文件作为校验标准',
+    '',
+    '### Sprint 阶段推进协议',
+    '',
+    '1. 开始每个阶段前，声明：「进入 [阶段名] 阶段，角色切换为 [角色名]」',
+    '2. 读取对应的 `.harness/roles/[角色].md`，遵守其中的行为限制',
+    '3. 将当前阶段写入 `.harness/current-stage`（供 hooks 读取）',
+    '4. 按照 `.harness/flows/sprint.md` 的节点定义完成本阶段任务',
+    '5. 完成后必须读取 `.harness/constraints/`，验证所有门禁通过',
+    '6. 所有门禁通过后，声明：「[阶段名] 阶段完成，准备进入 [下一阶段]」',
+    '',
+    '### 阶段 → 角色映射',
+    '',
+    roleMappingLines,
+    tddBlock,
+    reflectNote,
+  ].filter((line) => line !== '').join('\n') + '\n';
+}
+
 // ── Section generators ──
 
 function generateTechStack(config: ProjectConfig): string {
@@ -190,7 +258,7 @@ function generateFileStructure(config: ProjectConfig): string {
   }
 
   // Hook files
-  const hookFiles: string[] = ['      constraint-check.sh'];
+  const hookFiles: string[] = ['      constraint-check.sh', '      role-check.sh', '      emit-event.sh'];
   if (config.architecture.sandbox.credentialPolicy === 'vault') {
     hookFiles.push('      secret-check.sh');
   }
@@ -236,6 +304,7 @@ export function generateClaudeMd(config: ProjectConfig): OutputFile {
     '',
     config.project.description || '',
     '',
+    generateHarnessProtocol(config),
     generateTechStack(config),
     generateArchitecture(config),
     generateSprintFlow(config),

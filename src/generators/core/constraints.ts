@@ -98,5 +98,51 @@ export function generateCoreConstraints(config: ProjectConfig): OutputFile[] {
     });
   }
 
+  // P2-1: Generate machine-readable tdd.yaml when build has tddMode=enforced
+  const buildStage = config.flow.sprint.find(
+    (s) => s.name === 'build' && s.enabled
+  );
+  const buildConfig = buildStage?.stageConfig as
+    | { tddMode?: string; executionStrategy?: string }
+    | undefined;
+
+  if (buildConfig?.tddMode === 'enforced') {
+    // Extract test config from the test stage
+    const testStage = config.flow.sprint.find(
+      (s) => s.name === 'test' && s.enabled
+    );
+    const testConfig = testStage?.stageConfig as
+      | { coverageTarget?: number; testTypes?: string[] }
+      | undefined;
+
+    const coverageTarget = testConfig?.coverageTarget ?? 80;
+    const testTypes = testConfig?.testTypes ?? ['unit'];
+
+    const tddYaml = [
+      '# .harness/constraints/tdd.yaml',
+      '# Machine-readable TDD constraints — parsed by hooks for automated enforcement',
+      `version: "1.0"`,
+      `stage: build`,
+      `coverage:`,
+      `  min_percent: ${coverageTarget}`,
+      `  measure_command: "npm run coverage -- --json 2>/dev/null || echo {}"`,
+      `  result_field: "total.lines.pct"`,
+      `tests:`,
+      `  must_pass:`,
+      ...testTypes.map((t) => `    - ${t}`),
+      `  no_skip: true`,
+      `  run_command: "npm test"`,
+      `retry:`,
+      `  max_attempts: ${config.architecture.harness.maxRetries}`,
+      `  on_failure: "fix_and_retry"`,
+      '',
+    ].join('\n');
+
+    files.push({
+      path: '.harness/constraints/tdd.yaml',
+      content: tddYaml,
+    });
+  }
+
   return files;
 }

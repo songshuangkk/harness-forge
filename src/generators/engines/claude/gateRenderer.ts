@@ -139,6 +139,10 @@ export function renderGateScript(
   const sourceIds = checks.map((c) => c.id).join(', ');
   const stages = [...new Set(checks.map((c) => c.forStage))].join(', ');
 
+  // Extract stage name from gate name (e.g., "build-gate" → "build")
+  const stageMatch = name.match(/^(.+)-gate$/);
+  const stageName = stageMatch ? stageMatch[1] : null;
+
   const lines = [
     '#!/usr/bin/env bash',
     `# ${name}.sh — Gate verification`,
@@ -148,8 +152,27 @@ export function renderGateScript(
     '',
     'set -uo pipefail',
     '',
+  ];
+
+  // Inject stage-awareness block for stage gates
+  if (stageName) {
+    lines.push(
+      '# Stage awareness: only enforce when current stage matches',
+      'STAGE_FILE=".harness/current-stage"',
+      'CURRENT=$(cat "$STAGE_FILE" 2>/dev/null || echo "idle")',
+      `if [ "$CURRENT" != "${stageName}" ]; then`,
+      '  exit 0',
+      'fi',
+      '',
+    );
+  }
+
+  lines.push(
     'BLOCKED=0',
     '',
+  );
+
+  lines.push(
     checkBlocks.join('\n\n'),
     '',
     'if [ "$BLOCKED" -eq 1 ]; then',
@@ -159,7 +182,7 @@ export function renderGateScript(
     '',
     `echo "${name} passed."`,
     'exit 0',
-  ];
+  );
 
   return lines.join('\n');
 }
