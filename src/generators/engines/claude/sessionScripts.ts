@@ -1,13 +1,105 @@
 import type { ProjectConfig, OutputFile } from '@/types';
 
+// ── State machine check script ──
+
+function renderCheckScript(): string {
+  return `#!/usr/bin/env bash
+# check.sh — Display current harness state machine status
+set -uo pipefail
+
+HARNESS=".harness"
+
+if [ ! -f "$HARNESS/state.json" ]; then
+  echo "Harness not initialized. Run: bash .claude/scripts/session-init.sh"
+  exit 1
+fi
+
+if ! command -v jq >/dev/null 2>&1; then
+  cat "$HARNESS/state.json"
+  exit 0
+fi
+
+STATE=$(cat "$HARNESS/state.json")
+STAGE=$(echo "$STATE" | jq -r '.sprint.current')
+ROLE=$(echo "$STATE" | jq -r '.role.current')
+HISTORY=$(echo "$STATE" | jq -r '.sprint.history | join(" → ")')
+
+echo "╔══════════════════════════════════════╗"
+echo "║        Harness State Machine         ║"
+echo "╠══════════════════════════════════════╣"
+echo "║ Stage:  $STAGE"
+echo "║ Role:   $ROLE"
+echo "║ History: \${HISTORY:-none}"
+echo "╠══════════════════════════════════════╣"
+echo "║ Gates:"
+echo "$STATE" | jq -r '.gates | to_entries[] | "║   \(.key): \(if .value.passed then "✅ PASSED" else "❌ pending" end)"'
+echo "╚══════════════════════════════════════╝"
+`;
+}
+
 // ── Session init script (all modes) ──
 
 const SESSION_INIT_SCRIPT = `#!/usr/bin/env bash
-# session-init.sh — Initialize session storage
+# session-init.sh — Initialize harness state machine
 set -euo pipefail
 
+HARNESS=".harness"
+
+# Check dependencies — hard fail, do not initialize without jq and yq
+for cmd in jq yq; do
+  if ! command -v $cmd &>/dev/null; then
+    echo "FATAL: $cmd is required for state machine enforcement."
+    echo "Without $cmd, the hook state machine cannot function."
+    echo "Install: brew install $cmd"
+    exit 1
+  fi
+done
+
+# Initialize state.json if not present
+if [ ! -f "$HARNESS/state.json" ] && [ -f "$HARNESS/constraints.yaml" ]; then
+  STAGES=$(yq '.stages[].name' "$HARNESS/constraints.yaml")
+  FIRST=$(echo "$STAGES" | head -1)
+  FIRST_ROLE=$(yq ".stages[] | select(.name == \\"$FIRST\\") | .roles[0]" "$HARNESS/constraints.yaml")
+  FIRST_TOOLS=$(yq -o=j ".stages[] | select(.name == \\"$FIRST\\") | .tools.allow" "$HARNESS/constraints.yaml")
+  FIRST_PATHS=$(yq -o=j ".stages[] | select(.name == \\"$FIRST\\") | .paths.write" "$HARNESS/constraints.yaml")
+
+  GATES_JSON="{}"
+  for s in $STAGES; do
+    GATES_JSON=$(echo "$GATES_JSON" | jq --arg s "$s" '. + {($s): {"passed": false, "artifacts": []}}')
+  done
+
+  PROJECT=$(yq '.project // "unnamed"' "$HARNESS/constraints.yaml")
+
+  jq -n \\
+    --arg p "$PROJECT" \\
+    --arg s "$FIRST" \\
+    --arg r "$FIRST_ROLE" \\
+    --argjson t "$FIRST_TOOLS" \\
+    --argjson pa "$FIRST_PATHS" \\
+    --argjson g "$GATES_JSON" \\
+    '{version:1, project:$p, sprint:{current:$s,history:[],started_at:""}, role:{current:$r,allowed_tools:$t,allowed_paths:$pa}, gates:$g}' \\
+    > "$HARNESS/state.json"
+
+  echo "State machine initialized."
+fi
+
+# Write started_at timestamp
+if [ -f "$HARNESS/state.json" ]; then
+  jq --arg t "$(date -u +%Y-%m-%dT%H:%M:%SZ)" '.sprint.started_at = $t' \\
+    "$HARNESS/state.json" > "$HARNESS/state.json.tmp" \\
+    && mv "$HARNESS/state.json.tmp" "$HARNESS/state.json"
+fi
+
+# Create session directory
 mkdir -p .claude/sessions
-echo "Session initialized at .claude/sessions/"
+
+# Also init legacy files for backward compat
+echo "$(jq -r '.sprint.current' "$HARNESS/state.json" 2>/dev/null || echo 'think')" > .harness/current-stage 2>/dev/null || true
+echo "$(jq -r '.role.current' "$HARNESS/state.json" 2>/dev/null || echo 'ceo')" > .harness/current-role 2>/dev/null || true
+
+echo ""
+echo "Harness initialized. Start with: /think"
+echo "Check status anytime: bash .harness/scripts/check.sh"
 `;
 
 // ── Local-file session save ──
@@ -177,6 +269,12 @@ export function generateSessionScripts(config: ProjectConfig): OutputFile[] {
       });
       break;
   }
+
+  // State machine check script
+  files.push({
+    path: '.harness/scripts/check.sh',
+    content: renderCheckScript(),
+  });
 
   return files;
 }
