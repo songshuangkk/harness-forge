@@ -27,7 +27,7 @@ export const gstackSprint: TemplatePreset = {
           stageConfig: { reviewDimensions: ['spec-compliance', 'code-quality', 'security'], autoFix: 'auto', severityThreshold: 'critical-major' } },
         { id: 'test', name: 'test', order: 4, enabled: true, roles: ['qa'],
           gates: ['All test cases executed', 'Zero critical defects', 'Performance benchmarks met'],
-          stageConfig: { testMethods: ['tdd', 'regression'], coverageTarget: 80, testTypes: ['unit', 'integration', 'e2e', 'browser'], environment: 'staging' } },
+          stageConfig: { testMethods: ['tdd', 'regression'], coverageTarget: 80, testTypes: ['unit', 'integration', 'e2e', 'browser'], environment: 'staging', testCommand: '', coverageCommand: '' } },
         { id: 'ship', name: 'ship', order: 5, enabled: true, roles: ['release'],
           gates: ['CI pipeline green', 'Changelog updated', 'Release tag created'],
           stageConfig: { pipeline: ['run-tests', 'create-pr', 'merge', 'deploy'], versionStrategy: 'semver-minor', deploymentTargets: ['staging', 'production'] } },

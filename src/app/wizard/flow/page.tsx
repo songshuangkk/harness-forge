@@ -29,7 +29,7 @@ const DEFAULT_STAGE_CONFIGS: Record<StageName, StageSpecificConfig> = {
   plan:    { reviewTypes: ['ceo-review', 'eng-review'], taskStructure: 'simple' },
   build:   { executionStrategy: 'single-agent', tddMode: 'optional' },
   review:  { reviewDimensions: ['spec-compliance', 'code-quality'], autoFix: 'report-only', severityThreshold: 'all' },
-  test:    { testMethods: ['tdd'], coverageTarget: 80, testTypes: ['unit', 'integration'], environment: 'local' },
+  test:    { testMethods: ['tdd'], coverageTarget: 80, testTypes: ['unit', 'integration'], environment: 'local', testCommand: '', coverageCommand: '' },
   ship:    { pipeline: ['run-tests', 'create-pr'], versionStrategy: 'semver-patch', deploymentTargets: [] },
   reflect: { dimensions: ['velocity', 'quality'], persistLearning: 'project-memory' },
 };

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useCallback } from 'react';
+import { useProjectConfig } from '@/store/useProjectConfig';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { Slider } from '@/components/ui/slider';
@@ -22,6 +23,7 @@ import type {
   TestConfig,
   ShipConfig,
   ReflectConfig,
+  Language,
 } from '@/types';
 
 // ---------------------------------------------------------------------------
@@ -317,7 +319,20 @@ const TEST_METHOD_LABELS: Record<string, string> = { tdd: 'TDD', exploratory: 'E
 const TEST_TYPES = ['unit', 'integration', 'e2e', 'browser', 'performance', 'security'];
 const TEST_TYPE_LABELS: Record<string, string> = { unit: 'Unit', integration: 'Integration', e2e: 'E2E', browser: 'Browser', performance: 'Performance', security: 'Security' };
 
+const LANGUAGE_TEST_DEFAULTS: Record<Language, { test: string; coverage: string }> = {
+  typescript: { test: 'npm test', coverage: 'npm run coverage' },
+  javascript: { test: 'npm test', coverage: 'npm run coverage' },
+  python:     { test: 'pytest', coverage: 'pytest --cov --cov-report=term-missing' },
+  go:         { test: 'go test ./...', coverage: 'go test -cover ./...' },
+  java:       { test: 'mvn test', coverage: 'mvn test jacoco:report' },
+  rust:       { test: 'cargo test', coverage: 'cargo tarpaulin' },
+  dart:       { test: 'flutter test', coverage: 'flutter test --coverage' },
+};
+
 function TestConfigSection({ config, onChange, color }: { config: TestConfig; onChange: (p: Partial<TestConfig>) => void; color: StageColor }) {
+  const language = useProjectConfig((s) => s.config.project.techStack.language);
+  const defaults = LANGUAGE_TEST_DEFAULTS[language] ?? LANGUAGE_TEST_DEFAULTS.typescript;
+
   return (
     <div className="space-y-3">
       <SectionLabel title="Test Methods" hint="Methodology (Superpowers evidence over claims)" color={color} />
@@ -345,6 +360,40 @@ function TestConfigSection({ config, onChange, color }: { config: TestConfig; on
           <SelectItem value="production">Production</SelectItem>
         </SelectContent>
       </Select>
+      <SectionLabel title="Test Command" hint="Command to run tests (used in tdd.json and gate scripts)" color={color} />
+      <div className="flex items-center gap-2 max-w-md">
+        <Input
+          placeholder={defaults.test}
+          value={config.testCommand}
+          onChange={(e) => onChange({ testCommand: e.target.value })}
+          className="h-7 flex-1 text-xs font-mono"
+          style={{ backgroundColor: 'oklch(0.975 0.003 75)' }}
+        />
+        {!config.testCommand && (
+          <button onClick={() => onChange({ testCommand: defaults.test })}
+            className="rounded px-2 py-1 text-[10px] font-medium whitespace-nowrap"
+            style={{ backgroundColor: color.accentBg, color: color.accent }}>
+            Use {defaults.test}
+          </button>
+        )}
+      </div>
+      <SectionLabel title="Coverage Command" hint="Command to measure coverage" color={color} />
+      <div className="flex items-center gap-2 max-w-md">
+        <Input
+          placeholder={defaults.coverage}
+          value={config.coverageCommand}
+          onChange={(e) => onChange({ coverageCommand: e.target.value })}
+          className="h-7 flex-1 text-xs font-mono"
+          style={{ backgroundColor: 'oklch(0.975 0.003 75)' }}
+        />
+        {!config.coverageCommand && (
+          <button onClick={() => onChange({ coverageCommand: defaults.coverage })}
+            className="rounded px-2 py-1 text-[10px] font-medium whitespace-nowrap"
+            style={{ backgroundColor: color.accentBg, color: color.accent }}>
+            Use {defaults.coverage}
+          </button>
+        )}
+      </div>
     </div>
   );
 }

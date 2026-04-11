@@ -41,34 +41,90 @@ echo "╚═══════════════════════�
 
 const SESSION_INIT_SCRIPT = `#!/usr/bin/env bash
 # session-init.sh — Initialize harness state machine
+# Only requires: jq, git (no yq needed — constraints are JSON)
 set -euo pipefail
 
 HARNESS=".harness"
 
-# Check dependencies — hard fail, do not initialize without jq and yq
-for cmd in jq yq; do
-  if ! command -v $cmd &>/dev/null; then
-    echo "FATAL: $cmd is required for state machine enforcement."
-    echo "Without $cmd, the hook state machine cannot function."
-    echo "Install: brew install $cmd"
-    exit 1
+# ── Dependency resolution ──
+REQUIRED_DEPS=(jq git)
+MISSING=()
+
+for cmd in "\${REQUIRED_DEPS[@]}"; do
+  if ! command -v "$cmd" &>/dev/null; then
+    MISSING+=("$cmd")
   fi
 done
 
+if [ \${#MISSING[@]} -gt 0 ]; then
+  echo "Missing required dependencies: \${MISSING[*]}"
+
+  # Try auto-install
+  if command -v brew &>/dev/null; then
+    echo ""
+    echo "Homebrew detected. Installing missing dependencies..."
+    brew install \${MISSING[@]/git/} 2>/dev/null || true
+    # git is typically pre-installed; install via Xcode CLT on macOS
+    if ! command -v git &>/dev/null; then
+      echo "git not found. Install via: xcode-select --install"
+    fi
+
+    # Re-check after install
+    STILL_MISSING=()
+    for cmd in "\${MISSING[@]}"; do
+      if ! command -v "$cmd" &>/dev/null; then
+        STILL_MISSING+=("$cmd")
+      fi
+    done
+
+    if [ \${#STILL_MISSING[@]} -gt 0 ]; then
+      echo "FATAL: Auto-install failed for: \${STILL_MISSING[*]}"
+      echo "Install manually: brew install jq git"
+      exit 1
+    fi
+    echo "Dependencies installed successfully."
+  elif command -v apt-get &>/dev/null; then
+    echo ""
+    echo "apt detected. Attempting to install..."
+    sudo apt-get update -qq && sudo apt-get install -y -qq jq git 2>/dev/null || true
+
+    # Re-check after install
+    STILL_MISSING=()
+    for cmd in "\${MISSING[@]}"; do
+      if ! command -v "$cmd" &>/dev/null; then
+        STILL_MISSING+=("$cmd")
+      fi
+    done
+
+    if [ \${#STILL_MISSING[@]} -gt 0 ]; then
+      echo "FATAL: Auto-install failed for: \${STILL_MISSING[*]}"
+      echo "Install manually: sudo apt-get install jq git"
+      exit 1
+    fi
+    echo "Dependencies installed successfully."
+  else
+    echo "FATAL: No supported package manager found."
+    echo "Install manually:"
+    echo "  macOS:  brew install jq git"
+    echo "  Ubuntu: sudo apt-get install jq git"
+    exit 1
+  fi
+fi
+
 # Initialize state.json if not present
-if [ ! -f "$HARNESS/state.json" ] && [ -f "$HARNESS/constraints.yaml" ]; then
-  STAGES=$(yq '.stages[].name' "$HARNESS/constraints.yaml")
+if [ ! -f "$HARNESS/state.json" ] && [ -f "$HARNESS/constraints.json" ]; then
+  STAGES=$(jq -r '.stages[].name' "$HARNESS/constraints.json")
   FIRST=$(echo "$STAGES" | head -1)
-  FIRST_ROLE=$(yq ".stages[] | select(.name == \\"$FIRST\\") | .roles[0]" "$HARNESS/constraints.yaml")
-  FIRST_TOOLS=$(yq -o=j ".stages[] | select(.name == \\"$FIRST\\") | .tools.allow" "$HARNESS/constraints.yaml")
-  FIRST_PATHS=$(yq -o=j ".stages[] | select(.name == \\"$FIRST\\") | .paths.write" "$HARNESS/constraints.yaml")
+  FIRST_ROLE=$(jq -r ".stages[] | select(.name == \\"$FIRST\\") | .roles[0]" "$HARNESS/constraints.json")
+  FIRST_TOOLS=$(jq ".stages[] | select(.name == \\"$FIRST\\") | .tools.allow" "$HARNESS/constraints.json")
+  FIRST_PATHS=$(jq ".stages[] | select(.name == \\"$FIRST\\") | .paths.write" "$HARNESS/constraints.json")
 
   GATES_JSON="{}"
   for s in $STAGES; do
     GATES_JSON=$(echo "$GATES_JSON" | jq --arg s "$s" '. + {($s): {"passed": false, "artifacts": []}}')
   done
 
-  PROJECT=$(yq '.project // "unnamed"' "$HARNESS/constraints.yaml")
+  PROJECT=$(jq -r '.project // "unnamed"' "$HARNESS/constraints.json")
 
   jq -n \\
     --arg p "$PROJECT" \\

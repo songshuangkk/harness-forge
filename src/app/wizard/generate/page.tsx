@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Download, FileIcon, Package } from 'lucide-react';
+import { Download, FileIcon, GitMerge, Package } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useProjectConfig } from '@/store/useProjectConfig';
 import { generateAll } from '@/generators';
@@ -56,8 +56,9 @@ export default function GeneratePage() {
   const setCurrentStep = useProjectConfig((s) => s.setCurrentStep);
   const config = useProjectConfig((s) => s.config);
   const [downloading, setDownloading] = useState(false);
+  const [mergeMode, setMergeMode] = useState(false);
 
-  const files = useMemo(() => generateAll(config), [config]);
+  const files = useMemo(() => generateAll(config, { mergeMode }), [config, mergeMode]);
 
   const totalSize = useMemo(
     () => files.reduce((sum, f) => sum + new Blob([f.content]).size, 0),
@@ -78,6 +79,7 @@ export default function GeneratePage() {
   }, [files]);
 
   const engineLabel = ENGINE_LABELS[config.architecture.harness.engine] ?? config.architecture.harness.engine;
+  const isAdvisory = config.architecture.harness.engine === 'codex' || config.architecture.harness.engine === 'cursor';
 
   const handleDownload = async () => {
     setDownloading(true);
@@ -118,9 +120,21 @@ export default function GeneratePage() {
             {config.project.name || 'project'} — {files.length} files
           </p>
           <p className="text-xs text-ink-muted">
-            {engineLabel} &middot; {counts.core} core &middot; {counts.adapter} adapter &middot; {counts.docs} docs &middot; {formatBytes(totalSize)}
+            {engineLabel}{isAdvisory ? ' (advisory)' : ''} &middot; {counts.core} core &middot; {counts.adapter} adapter &middot; {counts.docs} docs &middot; {formatBytes(totalSize)}
           </p>
         </div>
+        <button
+          onClick={() => setMergeMode(!mergeMode)}
+          className={`flex items-center gap-2 rounded-md px-4 py-2.5 text-sm font-medium transition-precise active:scale-[0.98] ${
+            mergeMode
+              ? 'bg-copper/15 text-copper ring-1 ring-copper/30'
+              : 'text-ink-secondary hover:bg-secondary'
+          }`}
+          title={mergeMode ? 'Merge mode: ON — generates harness-import.sh for existing projects' : 'Click to enable merge mode for existing projects'}
+        >
+          <GitMerge className="size-4" />
+          {mergeMode ? 'Merge Mode' : 'New Project'}
+        </button>
         <button
           onClick={handleDownload}
           disabled={downloading}
@@ -130,6 +144,12 @@ export default function GeneratePage() {
           {downloading ? 'Generating...' : 'Download ZIP'}
         </button>
       </div>
+
+      {mergeMode && (
+        <div className="rounded-lg border border-copper/20 bg-copper/5 px-4 py-3 text-sm text-ink-secondary">
+          <strong className="text-copper">Merge mode enabled.</strong> The ZIP will include a <code className="rounded bg-paper px-1 py-0.5 text-xs">harness-import.sh</code> script that safely merges harness infrastructure into an existing project without overwriting files. Run it with <code className="rounded bg-paper px-1 py-0.5 text-xs">--dry-run</code> to preview first.
+        </div>
+      )}
 
       {/* File preview */}
       <FilePreview files={files} />

@@ -79,6 +79,8 @@ export function generateAgentsMd(config: ProjectConfig): OutputFile {
     '',
     config.project.description || '',
     '',
+    '> **Enforcement Level: Advisory** — Codex does not support runtime hooks. Constraints below are prompt-level guidelines, not hard blocks. For full enforcement, use Claude Code engine.',
+    '',
     architectureSection(config),
     sprintFlowSection(config),
     enforcedConstraintsSection(config),

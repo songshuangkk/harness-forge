@@ -13,6 +13,11 @@ export function generateCursorrules(config: ProjectConfig): OutputFile {
     sections.push(project.description);
   }
 
+  // Advisory notice
+  sections.push('');
+  sections.push('> **Enforcement Level: Advisory** — Cursor rules are prompt-level guidelines without runtime hooks. Constraints may be ignored by the AI. For full enforcement with gate checks, use Claude Code engine.');
+  sections.push('');
+
   // Architecture
   sections.push(`## Architecture`);
   sections.push(

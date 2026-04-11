@@ -28,8 +28,17 @@ import { generateCodexConfig } from './engines/codex/config';
 // Scaffold (always generated)
 import { generateScaffold } from './scaffold';
 
-export function generateAll(config: ProjectConfig): OutputFile[] {
+// Merge mode
+import { generateMergeScript } from './mergeScript';
+
+export interface GenerateOptions {
+  /** When true, generates a harness-import.sh merge script instead of flat files */
+  mergeMode?: boolean;
+}
+
+export function generateAll(config: ProjectConfig, options?: GenerateOptions): OutputFile[] {
   const files: OutputFile[] = [];
+  const { mergeMode = false } = options ?? {};
 
   // 1. Core files (always)
   files.push(generateCoreConfig(config));
@@ -71,6 +80,11 @@ export function generateAll(config: ProjectConfig): OutputFile[] {
 
   // 3. Scaffold files (always)
   files.push(...generateScaffold(config));
+
+  // 4. Merge mode: add import script
+  if (mergeMode) {
+    files.push(generateMergeScript(config));
+  }
 
   return files;
 }

@@ -113,7 +113,7 @@ function buildStageRule(stage: SprintStage, globalConstraints: string[]): Output
       lines.push(`**Write allowed only in**: ${stageToolRules.writePaths.join(', ')}`);
     }
     lines.push('');
-    lines.push('Read `.harness/constraints.yaml` for the full constraint rules.');
+    lines.push('Read `.harness/constraints.json` for the full constraint rules.');
   }
 
   // Gates

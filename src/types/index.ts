@@ -101,6 +101,10 @@ export interface TestConfig {
   testTypes: string[];
   /** Execution environment */
   environment: string;
+  /** Command to run tests (e.g. "npm test", "pytest", "go test ./...") */
+  testCommand: string;
+  /** Command to measure coverage (e.g. "npm run coverage", "pytest --cov") */
+  coverageCommand: string;
 }
 
 /** Ship — Release pipeline */

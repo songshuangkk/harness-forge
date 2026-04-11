@@ -103,6 +103,8 @@ function formatStageConfigBullets(name: StageName, config: StageSpecificConfig):
       bullets.push(`- Coverage target: ${c.coverageTarget}%`);
       if (c.testTypes.length > 0) bullets.push(`- Test types: ${c.testTypes.join(', ')}`);
       if (c.environment) bullets.push(`- Environment: ${c.environment}`);
+      if (c.testCommand) bullets.push(`- Test command: \`${c.testCommand}\``);
+      if (c.coverageCommand) bullets.push(`- Coverage command: \`${c.coverageCommand}\``);
       break;
     }
     case 'ship': {
@@ -259,6 +261,29 @@ export function generateCoreFlows(config: ProjectConfig): OutputFile[] {
       '5. Review stages (Plan, Review) use multi-role evaluation',
       '',
     ].join('\n'),
+  });
+
+  // Generate stage-order — simple list for hook scripts to read
+  files.push({
+    path: '.harness/stage-order',
+    content: enabledStages.map((s) => s.name).join('\n') + '\n',
+  });
+
+  // Generate stage-artifacts.json — artifact manifest for guard hooks
+  const artifactManifest: Record<string, Array<{ path: string; verification: string; sectionMarker?: string }>> = {};
+  for (const stage of enabledStages) {
+    const arts = getStageArtifacts(stage);
+    if (arts.length > 0) {
+      artifactManifest[stage.name] = arts.map((a) => ({
+        path: a.path,
+        verification: a.verification,
+        ...(a.sectionMarker ? { sectionMarker: a.sectionMarker } : {}),
+      }));
+    }
+  }
+  files.push({
+    path: '.harness/stage-artifacts.json',
+    content: JSON.stringify(artifactManifest, null, 2) + '\n',
   });
 
   return files;
