@@ -1,5 +1,15 @@
 import type { OutputFile, ProjectConfig, StageName, SprintStage, StageSpecificConfig } from '@/types';
 
+const STAGE_TOOL_RULES: Record<string, { allow: string[]; deny: string[]; writePaths: string[] }> = {
+  think: { allow: ['Read', 'Grep', 'Glob', 'Agent'], deny: ['Write', 'Edit', 'Bash'], writePaths: ['docs/**'] },
+  plan: { allow: ['Read', 'Grep', 'Glob', 'Write', 'Edit', 'Agent'], deny: ['Bash'], writePaths: ['docs/**'] },
+  build: { allow: ['Read', 'Grep', 'Glob', 'Write', 'Edit', 'Bash', 'Agent'], deny: [], writePaths: ['src/**', 'test/**', 'docs/**'] },
+  review: { allow: ['Read', 'Grep', 'Glob', 'Write', 'Edit'], deny: ['Bash'], writePaths: ['docs/**'] },
+  test: { allow: ['Read', 'Grep', 'Glob', 'Write', 'Edit', 'Bash'], deny: [], writePaths: ['test/**', 'docs/**'] },
+  ship: { allow: ['Read', 'Grep', 'Glob', 'Write', 'Edit', 'Bash'], deny: [], writePaths: ['**'] },
+  reflect: { allow: ['Read', 'Grep', 'Glob', 'Write', 'Edit'], deny: ['Bash'], writePaths: ['docs/**'] },
+};
+
 const STAGE_ORDER: StageName[] = ['think', 'plan', 'build', 'review', 'test', 'ship', 'reflect'];
 
 const STAGE_TITLES: Record<StageName, string> = {
@@ -87,6 +97,23 @@ function buildStageRule(stage: SprintStage, globalConstraints: string[]): Output
   const processSteps = buildProcessSteps(name, stageConfig);
   for (const step of processSteps) {
     lines.push(step);
+  }
+
+  // State machine constraint advisory
+  const stageToolRules = STAGE_TOOL_RULES[stage.name];
+  if (stageToolRules) {
+    lines.push('', '## Constraints (Auto-enforced in Claude Code, advisory here)', '');
+    lines.push('State file: `.harness/state.json`');
+    lines.push(`Current stage: ${stage.name}`);
+    lines.push('');
+    if (stageToolRules.deny.length > 0) {
+      lines.push(`**Blocked tools**: ${stageToolRules.deny.join(', ')}`);
+    }
+    if (stageToolRules.writePaths.length > 0) {
+      lines.push(`**Write allowed only in**: ${stageToolRules.writePaths.join(', ')}`);
+    }
+    lines.push('');
+    lines.push('Read `.harness/constraints.yaml` for the full constraint rules.');
   }
 
   // Gates

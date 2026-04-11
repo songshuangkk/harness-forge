@@ -1,5 +1,43 @@
 import type { ProjectConfig, OutputFile, StageName } from '@/types';
 
+const STAGE_TOOL_RULES: Record<string, { allow: string[]; deny: string[]; writePaths: string[] }> = {
+  think: { allow: ['Read', 'Grep', 'Glob', 'Agent'], deny: ['Write', 'Edit', 'Bash'], writePaths: ['docs/**'] },
+  plan: { allow: ['Read', 'Grep', 'Glob', 'Write', 'Edit', 'Agent'], deny: ['Bash'], writePaths: ['docs/**'] },
+  build: { allow: ['Read', 'Grep', 'Glob', 'Write', 'Edit', 'Bash', 'Agent'], deny: [], writePaths: ['src/**', 'test/**', 'docs/**'] },
+  review: { allow: ['Read', 'Grep', 'Glob', 'Write', 'Edit'], deny: ['Bash'], writePaths: ['docs/**'] },
+  test: { allow: ['Read', 'Grep', 'Glob', 'Write', 'Edit', 'Bash'], deny: [], writePaths: ['test/**', 'docs/**'] },
+  ship: { allow: ['Read', 'Grep', 'Glob', 'Write', 'Edit', 'Bash'], deny: [], writePaths: ['**'] },
+  reflect: { allow: ['Read', 'Grep', 'Glob', 'Write', 'Edit'], deny: ['Bash'], writePaths: ['docs/**'] },
+};
+
+function formatStateMachineConstraints(stageName: string): string {
+  const rules = STAGE_TOOL_RULES[stageName];
+  if (!rules) return '';
+
+  const lines: string[] = [
+    '## Constraints (Auto-enforced in Claude Code, advisory here)',
+    '',
+    'State file: `.harness/state.json`',
+    `Current stage: ${stageName}`,
+    '',
+  ];
+
+  if (rules.deny.length > 0) {
+    lines.push(`- DO NOT use: ${rules.deny.join(', ')}`);
+  }
+  if (rules.allow.length > 0) {
+    lines.push(`- Allowed tools: ${rules.allow.join(', ')}`);
+  }
+
+  lines.push('', '### Write Restrictions');
+  for (const p of rules.writePaths) {
+    lines.push(`- Write allowed: ${p}`);
+  }
+  lines.push('');
+
+  return lines.join('\n');
+}
+
 const STAGE_LABELS: Record<StageName, string> = {
   think: 'Think',
   plan: 'Plan',
@@ -73,6 +111,7 @@ export function generateCodexSkills(config: ProjectConfig): OutputFile[] {
       '',
       description,
       '',
+      formatStateMachineConstraints(stage.name),
       formatGates(stage),
       formatConstraints(config, stage.id),
       formatConfig(stage.stageConfig),
