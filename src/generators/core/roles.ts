@@ -76,6 +76,22 @@ const DEFAULT_ROLE_DEFINITIONS: Record<string, RoleConfig> = {
   },
 };
 
+// ── Per-role denied tools (drives role-check.sh enforcement) ──
+
+const ROLE_DENIED_TOOLS: Record<string, string[]> = {
+  ceo: ['Write', 'Edit', 'Bash'],
+  designer: ['Bash'],
+  'eng-manager': [],
+  qa: ['Write', 'Edit'],
+  security: ['Write', 'Edit', 'Bash'],
+  release: [],
+  'doc-engineer': ['Bash'],
+};
+
+function getRoleDeniedTools(roleId: string): string[] {
+  return ROLE_DENIED_TOOLS[roleId] ?? [];
+}
+
 function getRoleDefinition(roleId: string, configuredRoles: RoleConfig[]): RoleConfig {
   // Check if user defined this role in config
   const configured = configuredRoles.find((r) => r.id === roleId);
@@ -91,14 +107,26 @@ function getRoleDefinition(roleId: string, configuredRoles: RoleConfig[]): RoleC
 
 function generateRoleMarkdown(role: RoleConfig): string {
   const prompt = getRolePrompt(role.id, []);
+  const deniedTools = getRoleDeniedTools(role.id);
+
   const lines: string[] = [
     `# ${role.label}`,
     '',
     role.description,
     '',
-    '## Default Constraints',
+    '## Denied Tools',
     '',
   ];
+
+  if (deniedTools.length > 0) {
+    for (const tool of deniedTools) {
+      lines.push(`- ${tool}`);
+    }
+  } else {
+    lines.push('None — this role has full tool access.');
+  }
+
+  lines.push('', '## Default Constraints', '');
 
   if (role.defaultConstraints.length > 0) {
     for (const c of role.defaultConstraints) {

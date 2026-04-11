@@ -132,8 +132,10 @@ export function generateCoreFlows(config: ProjectConfig): OutputFile[] {
   if (enabledStages.length === 0) return [];
 
   const allConstraints = config.flow.constraints;
+  const files: OutputFile[] = [];
 
-  return enabledStages.map((stage) => {
+  // Generate individual stage files
+  const stageFiles = enabledStages.map((stage) => {
     const meta = STAGE_META[stage.name];
     const roleLabels = stage.roles.map((r: RoleName) => ROLE_LABELS[r] || r);
 
@@ -213,4 +215,51 @@ export function generateCoreFlows(config: ProjectConfig): OutputFile[] {
       content: lines.join('\n'),
     };
   });
+
+  files.push(...stageFiles);
+
+  // Generate aggregated sprint.md — the authoritative flow document
+  const flowDiagram = enabledStages
+    .map((s) => s.name.charAt(0).toUpperCase() + s.name.slice(1))
+    .join(' → ');
+
+  const stageEntries = enabledStages.map((stage) => {
+    const meta = STAGE_META[stage.name];
+    const roleLabels = stage.roles.map((r: RoleName) => ROLE_LABELS[r] || r);
+    const roleLine = roleLabels.length > 0 ? roleLabels.join(', ') : 'No roles assigned';
+    const artifacts = getStageArtifacts(stage);
+    const artifactLine = artifacts.length > 0
+      ? artifacts.map((a) => a.path).join(', ')
+      : 'None';
+
+    return `### ${meta.title}\n\n- **Roles**: ${roleLine}\n- **Input**: ${meta.input.split('.')[0]}\n- **Output**: ${meta.output.split('.')[0]}\n- **Artifacts**: ${artifactLine}\n- **Detail**: See \`flows/${stage.name}.md\``;
+  }).join('\n\n');
+
+  files.push({
+    path: '.harness/flows/sprint.md',
+    content: [
+      '# Sprint Flow',
+      '',
+      'This is the authoritative source for sprint execution order.',
+      '',
+      '```',
+      flowDiagram,
+      '```',
+      '',
+      '## Stage Overview',
+      '',
+      stageEntries,
+      '',
+      '## Execution Rules',
+      '',
+      '1. Stages execute in the order shown above',
+      '2. Each stage must complete its gates before advancing',
+      '3. Write current stage to `.harness/current-stage` on entry',
+      '4. Read the corresponding `flows/{stage}.md` for full stage instructions',
+      '5. Review stages (Plan, Review) use multi-role evaluation',
+      '',
+    ].join('\n'),
+  });
+
+  return files;
 }
