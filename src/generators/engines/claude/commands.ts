@@ -313,6 +313,14 @@ function renderRoleSubCommand(
     '',
     `You are performing the ${action} from the **${prompt.label}** perspective.`,
     '',
+    '## Stage Entry (MANDATORY)',
+    '',
+    'Before doing anything else:',
+    '',
+    `1. Write \`${stageName}\` to \`.harness/current-stage\``,
+    `2. Write \`${roleId}\` to \`.harness/current-role\``,
+    `3. Read \`.harness/roles/${roleId}.md\` for your role definition`,
+    '',
     `## System Prompt`,
     '',
     `> ${prompt.systemPrompt}`,
@@ -400,7 +408,7 @@ function formatStageConfigJson(name: StageName, config: StageSpecificConfig): st
     }
     case 'test': {
       const c = config as TestConfig;
-      obj = { testMethods: c.testMethods, coverageTarget: c.coverageTarget, testTypes: c.testTypes, environment: c.environment };
+      obj = { testMethods: c.testMethods, coverageTarget: c.coverageTarget, testTypes: c.testTypes, environment: c.environment, testCommand: c.testCommand, coverageCommand: c.coverageCommand };
       break;
     }
     case 'ship': {
@@ -460,6 +468,21 @@ export function generateClaudeCommands(config: ProjectConfig): OutputFile[] {
     // YAML frontmatter
     const frontmatter = `---\ndescription: ${title}\n---\n`;
 
+    // Stage entry protocol — auto-write stage/role state files
+    const primaryRole = stage.roles[0];
+    const primaryRoleLabel = getRolePrompt(primaryRole, configuredRoles).label;
+    const stageEntryProtocol = [
+      '## Stage Entry (MANDATORY)',
+      '',
+      'Before doing anything else in this stage:',
+      '',
+      `1. Run: \`bash .claude/hooks/transition.sh ${stage.name}\``,
+      '   - If it fails, DO NOT proceed. Tell the user which gates are blocking.',
+      `2. If transition succeeds, you are now in stage **${title}** acting as **${primaryRoleLabel}**.`,
+      `3. Read \`.harness/roles/${primaryRole}.md\` for your role definition.`,
+      '',
+    ].join('\n');
+
     // Role perspectives section (dynamic)
     const roleSection = renderRolePerspectives(stage.roles, configuredRoles);
 
@@ -504,6 +527,7 @@ export function generateClaudeCommands(config: ProjectConfig): OutputFile[] {
       '',
       description,
       '',
+      stageEntryProtocol,
       process,
       '',
       roleSection,
