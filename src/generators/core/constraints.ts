@@ -88,8 +88,10 @@ function generateConstraintsJson(config: ProjectConfig): string {
     const gates: GateDef[] = [];
 
     // Artifact-based gates
-    for (const artifact of artifacts) {
-      const gateId = `${stage.name}-${artifact.path.split('/').pop()?.replace(/\..*$/, '') ?? 'output'}`;
+    for (let j = 0; j < artifacts.length; j++) {
+      const artifact = artifacts[j];
+      const baseId = artifact.path.split('/').pop()?.replace(/\..*$/, '') ?? 'output';
+      const gateId = `${stage.name}-${baseId}${j > 0 ? `-${j}` : ''}`;
       gates.push({
         id: gateId,
         type: artifact.verification === 'exists' ? 'file_exists' : artifact.verification === 'non-empty' ? 'file_nonempty' : 'file_contains',
@@ -138,8 +140,10 @@ function generateConstraintsJson(config: ProjectConfig): string {
     // Transition rules
     if (nextStage) {
       const requires: string[] = [];
-      for (const artifact of artifacts) {
-        const gateId = `${stage.name}-${artifact.path.split('/').pop()?.replace(/\..*$/, '') ?? 'output'}`;
+      for (let j = 0; j < artifacts.length; j++) {
+        const artifact = artifacts[j];
+        const baseId = artifact.path.split('/').pop()?.replace(/\..*$/, '') ?? 'output';
+        const gateId = `${stage.name}-${baseId}${j > 0 ? `-${j}` : ''}`;
         requires.push(gateId);
       }
       for (const c of enforcedConstraints) {
