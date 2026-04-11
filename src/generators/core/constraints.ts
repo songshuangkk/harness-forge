@@ -12,7 +12,7 @@ interface StageToolRules {
 function getStageToolRules(stageName: string): StageToolRules {
   switch (stageName) {
     case 'think':
-      return { allow: ['Read', 'Grep', 'Glob', 'Agent'], deny: ['Write', 'Edit', 'Bash'], writePaths: ['docs/**'] };
+      return { allow: ['Read', 'Grep', 'Glob', 'Write', 'Edit', 'Agent'], deny: ['Bash'], writePaths: ['docs/**'] };
     case 'plan':
       return { allow: ['Read', 'Grep', 'Glob', 'Write', 'Edit', 'Agent'], deny: ['Bash'], writePaths: ['docs/**'] };
     case 'build':
@@ -225,8 +225,25 @@ const LANGUAGE_TEST_DEFAULTS: Record<string, { test: string; coverage: string }>
 };
 
 export function generateCoreConstraints(config: ProjectConfig): OutputFile[] {
+  const files: OutputFile[] = [];
+
+  // Generate the unified constraints.json for hook state machine (always, regardless of user constraints)
+  const constraintsJson = generateConstraintsJson(config);
+  if (constraintsJson) {
+    files.push({
+      path: '.harness/constraints.json',
+      content: constraintsJson,
+    });
+  }
+
+  // Generate initial state.json (always)
+  files.push({
+    path: '.harness/state.json',
+    content: generateInitialState(config),
+  });
+
   const constraints = config.flow.constraints;
-  if (constraints.length === 0) return [];
+  if (constraints.length === 0) return files;
 
   // Group by type
   const grouped = new Map<ConstraintType, ConstraintEntry[]>();
@@ -242,23 +259,6 @@ export function generateCoreConstraints(config: ProjectConfig): OutputFile[] {
     });
     grouped.set(c.type, list);
   }
-
-  const files: OutputFile[] = [];
-
-  // Generate the unified constraints.json for hook state machine
-  const constraintsJson = generateConstraintsJson(config);
-  if (constraintsJson) {
-    files.push({
-      path: '.harness/constraints.json',
-      content: constraintsJson,
-    });
-  }
-
-  // Generate initial state.json
-  files.push({
-    path: '.harness/state.json',
-    content: generateInitialState(config),
-  });
 
   // Generate per-type constraint files as JSON
   for (const [type, entries] of grouped) {
