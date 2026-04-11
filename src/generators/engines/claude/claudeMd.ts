@@ -91,6 +91,22 @@ function generateHarnessProtocol(config: ProjectConfig): string {
     roleMappingLines,
     tddBlock,
     reflectNote,
+    '',
+    '## State Machine Protocol',
+    '',
+    'This project uses a file-based state machine for sprint enforcement:',
+    '',
+    '1. **Initialization**: Run `bash .claude/scripts/session-init.sh` at session start',
+    '2. **Stage Entry**: Use slash commands (`/think`, `/plan`, etc.) — each calls `transition.sh`',
+    '3. **Gate Enforcement**: `guard.sh` blocks disallowed tools; `advance.sh` checks gates after each action',
+    '4. **State**: Stored in `.harness/state.json` — you CANNOT modify this file directly',
+    '5. **Status**: Run `bash .harness/scripts/check.sh` anytime to see current state',
+    '',
+    '### Rules',
+    '- NEVER attempt to edit `.harness/state.json` or `.harness/constraints.yaml` — they are read-only to you',
+    '- NEVER attempt to edit `.claude/hooks/` or `.claude/scripts/` — enforcement scripts are read-only to you',
+    '- If `transition.sh` blocks you, complete the current stage gates first',
+    '- Each stage has specific tool and path restrictions — `guard.sh` enforces them',
   ].filter((line) => line !== '').join('\n') + '\n';
 }
 
