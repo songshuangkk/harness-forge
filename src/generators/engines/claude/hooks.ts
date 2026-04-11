@@ -379,88 +379,50 @@ export function buildClaudeHookRegistrations(
     Array<{ matcher: string; hooks: Array<{ type: string; command: string }> }>
   > = {};
 
-  // Always register PreToolUse(Bash) -> constraint-check.sh
-  if (!registrations['PreToolUse']) {
-    registrations['PreToolUse'] = [];
-  }
-  registrations['PreToolUse'].push({
-    matcher: 'Bash',
-    hooks: [
-      {
-        type: 'command',
-        command: '.claude/hooks/constraint-check.sh',
-      },
-    ],
-  });
+  // PreToolUse: guard.sh — enforce stage/role/tool constraints
+  registrations['PreToolUse'] = [
+    // Constraint check for Bash commands (dangerous command blocking)
+    {
+      matcher: 'Bash',
+      hooks: [{ type: 'command', command: '.claude/hooks/constraint-check.sh' }],
+    },
+    // State machine guard — check tool permissions and write paths
+    {
+      matcher: '',
+      hooks: [{ type: 'command', command: '.claude/hooks/guard.sh' }],
+    },
+  ];
 
-  // P1: Guard — enforce stage/role constraints from constraints.yaml on all tool uses
-  registrations['PreToolUse'].push({
-    matcher: '',
-    hooks: [
-      {
-        type: 'command',
-        command: '.claude/hooks/guard.sh',
-      },
-    ],
-  });
+  // PostToolUse: advance.sh — check gates after each tool use
+  registrations['PostToolUse'] = [
+    {
+      matcher: '',
+      hooks: [{ type: 'command', command: '.claude/hooks/advance.sh' }],
+    },
+  ];
 
-  // P1: emitEvent — log every tool use to .harness/log/events.jsonl
-  // PostToolUse: advance — check gates and update state.json after each tool use
-  if (!registrations['PostToolUse']) {
-    registrations['PostToolUse'] = [];
-  }
+  // Keep emit-event for logging (on write-like operations only)
   for (const tool of ['Write', 'Edit', 'Bash']) {
     registrations['PostToolUse'].push({
       matcher: tool,
-      hooks: [
-        {
-          type: 'command',
-          command: '.claude/hooks/emit-event.sh',
-        },
-        {
-          type: 'command',
-          command: '.claude/hooks/advance.sh',
-        },
-      ],
+      hooks: [{ type: 'command', command: '.claude/hooks/emit-event.sh' }],
     });
   }
 
-  // Note: Stage gate scripts (build-gate, review-gate, ship-gate) are
-  // generated as files but NOT registered as auto-hooks. They check for
-  // artifacts that may not exist yet, which would block ALL commands.
-  // Users invoke them manually: bash .claude/hooks/<gate>.sh
-
   // Secret detection hook (vault credential policy)
   if (hasSecretCheck(config)) {
-    if (!registrations['PreToolUse']) {
-      registrations['PreToolUse'] = [];
-    }
     registrations['PreToolUse'].push({
       matcher: 'Write',
-      hooks: [
-        {
-          type: 'command',
-          command: '.claude/hooks/secret-check.sh',
-        },
-      ],
+      hooks: [{ type: 'command', command: '.claude/hooks/secret-check.sh' }],
     });
   }
 
   // Session save hook (git-based session storage)
-  // Only fire on write-like operations, not on every read/search
   if (config.architecture.session.storage === 'git-based') {
-    if (!registrations['PostToolUse']) {
-      registrations['PostToolUse'] = [];
-    }
     for (const tool of ['Write', 'Edit', 'Bash']) {
       registrations['PostToolUse'].push({
         matcher: tool,
-        hooks: [
-          {
-            type: 'command',
-            command: '.claude/scripts/session-save.sh',
-          },
-        ],
+        hooks: [{ type: 'command', command: '.claude/scripts/session-save.sh' }],
       });
     }
   }
@@ -472,12 +434,7 @@ export function buildClaudeHookRegistrations(
     }
     registrations[hook.event].push({
       matcher: '',
-      hooks: [
-        {
-          type: 'command',
-          command: hook.command,
-        },
-      ],
+      hooks: [{ type: 'command', command: hook.command }],
     });
   }
 
