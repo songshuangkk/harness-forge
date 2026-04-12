@@ -18,7 +18,7 @@ export const managedAgents: TemplatePreset = {
           stageConfig: { reviewTypes: ['ceo-review', 'eng-review'], taskStructure: 'structured' } },
         { id: 'build', name: 'build', order: 1, enabled: true, roles: ['eng-manager'],
           gates: ['Agent session started', 'All tool calls validated'],
-          stageConfig: { executionStrategy: 'subagent-parallel', tddMode: 'enforced' } },
+          stageConfig: { executionStrategy: 'subagent-parallel', tddMode: 'enforced', writePaths: ['**/src/**', '**/test/**', 'docs/**'] } },
         { id: 'ship', name: 'ship', order: 2, enabled: true, roles: ['release'],
           gates: ['Session replay verified', 'Artifacts stored in vault'],
           stageConfig: { pipeline: ['run-tests', 'create-pr', 'deploy'], versionStrategy: 'semver-patch', deploymentTargets: ['production'] } },

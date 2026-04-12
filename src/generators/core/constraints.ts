@@ -16,11 +16,11 @@ function getStageToolRules(stageName: string): StageToolRules {
     case 'plan':
       return { allow: ['Read', 'Grep', 'Glob', 'Write', 'Edit', 'Agent'], deny: ['Bash'], writePaths: ['docs/**'] };
     case 'build':
-      return { allow: ['Read', 'Grep', 'Glob', 'Write', 'Edit', 'Bash', 'Agent'], deny: [], writePaths: ['src/**', 'test/**', 'docs/**'] };
+      return { allow: ['Read', 'Grep', 'Glob', 'Write', 'Edit', 'Bash', 'Agent'], deny: [], writePaths: ['**/src/**', '**/test/**', 'docs/**'] };
     case 'review':
       return { allow: ['Read', 'Grep', 'Glob', 'Write', 'Edit'], deny: ['Bash'], writePaths: ['docs/**'] };
     case 'test':
-      return { allow: ['Read', 'Grep', 'Glob', 'Write', 'Edit', 'Bash'], deny: [], writePaths: ['test/**', 'docs/**'] };
+      return { allow: ['Read', 'Grep', 'Glob', 'Write', 'Edit', 'Bash'], deny: [], writePaths: ['**/test/**', 'docs/**'] };
     case 'ship':
       return { allow: ['Read', 'Grep', 'Glob', 'Write', 'Edit', 'Bash'], deny: [], writePaths: ['**'] };
     case 'reflect':
@@ -28,6 +28,15 @@ function getStageToolRules(stageName: string): StageToolRules {
     default:
       return { allow: [], deny: [], writePaths: [] };
   }
+}
+
+/** Resolve write paths: user override from stageConfig, or flexible-glob defaults */
+function resolveWritePaths(stageName: string, stageConfig?: Record<string, unknown>): string[] {
+  const defaults = getStageToolRules(stageName).writePaths;
+  if (stageConfig?.writePaths && Array.isArray(stageConfig.writePaths) && stageConfig.writePaths.length > 0) {
+    return stageConfig.writePaths as string[];
+  }
+  return defaults;
 }
 
 // ── Unified constraints.json generator ──
@@ -128,11 +137,13 @@ function generateConstraintsJson(config: ProjectConfig): string {
       }
     }
 
+    const resolvedWritePaths = resolveWritePaths(stage.name, stage.stageConfig as Record<string, unknown> | undefined);
+
     stages.push({
       name: stage.name,
       roles: [...stage.roles],
       tools: { allow: toolRules.allow, deny: toolRules.deny },
-      paths: { write: toolRules.writePaths },
+      paths: { write: resolvedWritePaths },
       gates,
       next: nextStage?.name ?? null,
     });

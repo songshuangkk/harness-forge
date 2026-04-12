@@ -151,7 +151,7 @@ function renderGuardScript(): string {
     '# Check deny list — but exempt harness-managed scripts from Bash deny',
     '# Slash commands invoke bash .claude/hooks/transition.sh which must always work',
     'SKIP_DENY=false',
-    'if [[ "$TOOL" == "Bash" ]] && echo "$FILE" | grep -qE \'\.claude/(hooks|scripts)/\'; then',
+    'if [[ "$TOOL" == "Bash" ]] && echo "$FILE" | grep -qE \'\.(claude/(hooks|scripts)/|harness/scripts/)\'; then',
     '  SKIP_DENY=true',
     'fi',
     '',

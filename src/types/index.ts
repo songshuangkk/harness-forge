@@ -63,6 +63,8 @@ export interface ThinkConfig {
   dimensions: string[];
   /** Analysis depth */
   depth: 'quick' | 'deep';
+  /** Override default write-path patterns for this stage */
+  writePaths?: string[];
 }
 
 /** Plan — Multi-role architecture review */
@@ -71,6 +73,8 @@ export interface PlanConfig {
   reviewTypes: string[];
   /** How structured the task breakdown must be */
   taskStructure: 'simple' | 'structured';
+  /** Override default write-path patterns for this stage */
+  writePaths?: string[];
 }
 
 /** Build — Implementation strategy */
@@ -79,6 +83,8 @@ export interface BuildConfig {
   executionStrategy: 'single-agent' | 'subagent-parallel';
   /** TDD enforcement level */
   tddMode: 'enforced' | 'optional';
+  /** Override default write-path glob patterns for this stage */
+  writePaths?: string[];
 }
 
 /** Review — Multi-dimensional quality audit */
@@ -89,6 +95,8 @@ export interface ReviewConfig {
   autoFix: 'auto' | 'report-only';
   /** Minimum severity to report */
   severityThreshold: 'all' | 'critical-major' | 'critical-only';
+  /** Override default write-path patterns for this stage */
+  writePaths?: string[];
 }
 
 /** Test — Evidence-based verification */
@@ -105,6 +113,8 @@ export interface TestConfig {
   testCommand: string;
   /** Command to measure coverage (e.g. "npm run coverage", "pytest --cov") */
   coverageCommand: string;
+  /** Override default write-path patterns for this stage */
+  writePaths?: string[];
 }
 
 /** Ship — Release pipeline */
@@ -131,6 +141,8 @@ export interface ReflectConfig {
   dimensions: string[];
   /** Whether to persist learnings across sessions */
   persistLearning: 'project-memory' | 'session-only';
+  /** Override default write-path patterns for this stage */
+  writePaths?: string[];
 }
 
 export type StageSpecificConfig = ThinkConfig | PlanConfig | BuildConfig | ReviewConfig | TestConfig | ShipConfig | ReflectConfig;

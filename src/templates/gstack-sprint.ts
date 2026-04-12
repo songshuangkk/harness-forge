@@ -21,7 +21,7 @@ export const gstackSprint: TemplatePreset = {
           stageConfig: { reviewTypes: ['ceo-review', 'eng-review', 'design-review', 'dx-review'], taskStructure: 'structured' } },
         { id: 'build', name: 'build', order: 2, enabled: true, roles: ['eng-manager'],
           gates: ['Feature branch created', 'Core logic implemented'],
-          stageConfig: { executionStrategy: 'subagent-parallel', tddMode: 'enforced' } },
+          stageConfig: { executionStrategy: 'subagent-parallel', tddMode: 'enforced', writePaths: ['**/src/**', '**/test/**', 'docs/**'] } },
         { id: 'review', name: 'review', order: 3, enabled: true, roles: ['eng-manager'],
           gates: ['Code review passed', 'No critical code smells'],
           stageConfig: { reviewDimensions: ['spec-compliance', 'code-quality', 'security'], autoFix: 'auto', severityThreshold: 'critical-major' } },

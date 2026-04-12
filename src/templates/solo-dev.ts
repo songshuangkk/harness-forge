@@ -18,7 +18,7 @@ export const soloDev: TemplatePreset = {
           stageConfig: { dimensions: ['problem-framing', 'success-metrics', 'scope'], depth: 'quick' } },
         { id: 'build', name: 'build', order: 1, enabled: true, roles: ['eng-manager'],
           gates: ['Tests pass'],
-          stageConfig: { executionStrategy: 'single-agent', tddMode: 'optional' } },
+          stageConfig: { executionStrategy: 'single-agent', tddMode: 'optional', writePaths: ['**/src/**', '**/test/**', 'docs/**'] } },
         { id: 'review', name: 'review', order: 2, enabled: true, roles: ['qa'],
           gates: ['No critical bugs'],
           stageConfig: { reviewDimensions: ['spec-compliance', 'code-quality'], autoFix: 'report-only', severityThreshold: 'critical-major' } },

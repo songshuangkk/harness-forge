@@ -242,6 +242,9 @@ function PlanConfigSection({ config, onChange, color }: { config: PlanConfig; on
 }
 
 function BuildConfigSection({ config, onChange, color }: { config: BuildConfig; onChange: (p: Partial<BuildConfig>) => void; color: StageColor }) {
+  const [pathInput, setPathInput] = useState('');
+  const defaultPaths = '**/src/**, **/test/**, docs/**';
+
   return (
     <div className="space-y-3">
       <SectionLabel title="Execution Strategy" hint="How the agent executes tasks (Superpowers subagent model)" color={color} />
@@ -264,6 +267,36 @@ function BuildConfigSection({ config, onChange, color }: { config: BuildConfig; 
           <SelectItem value="optional">Optional — write code first if preferred</SelectItem>
         </SelectContent>
       </Select>
+      <SectionLabel title="Write Paths" hint="Glob patterns for allowed write targets (default: use defaults below)" color={color} />
+      {config.writePaths && config.writePaths.length > 0 && (
+        <TagChips items={config.writePaths} onRemove={(i) => onChange({ writePaths: config.writePaths!.filter((_, idx) => idx !== i) })} color={color} />
+      )}
+      <div className="flex items-center gap-1.5">
+        <Input placeholder={defaultPaths} value={pathInput}
+          onChange={(e) => setPathInput(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && pathInput.trim()) {
+              e.preventDefault();
+              const current = config.writePaths ?? [];
+              if (!current.includes(pathInput.trim())) onChange({ writePaths: [...current, pathInput.trim()] });
+              setPathInput('');
+            }
+          }}
+          className="h-7 flex-1 max-w-xs text-xs font-mono" style={{ backgroundColor: 'oklch(0.975 0.003 75)' }} />
+        <button onClick={() => {
+          if (pathInput.trim()) {
+            const current = config.writePaths ?? [];
+            if (!current.includes(pathInput.trim())) onChange({ writePaths: [...current, pathInput.trim()] });
+            setPathInput('');
+          }
+        }} className="flex h-7 items-center gap-1 rounded-md px-2.5 text-xs font-medium disabled:opacity-30"
+          disabled={!pathInput.trim()} style={{ backgroundColor: color.accentBg, color: color.accent }}>+ Add</button>
+        {config.writePaths && config.writePaths.length > 0 && (
+          <button onClick={() => onChange({ writePaths: undefined })}
+            className="rounded px-2 py-1 text-[10px] font-medium whitespace-nowrap"
+            style={{ color: color.textMuted }}>Reset</button>
+        )}
+      </div>
     </div>
   );
 }
@@ -332,6 +365,8 @@ const LANGUAGE_TEST_DEFAULTS: Record<Language, { test: string; coverage: string 
 function TestConfigSection({ config, onChange, color }: { config: TestConfig; onChange: (p: Partial<TestConfig>) => void; color: StageColor }) {
   const language = useProjectConfig((s) => s.config.project.techStack.language);
   const defaults = LANGUAGE_TEST_DEFAULTS[language] ?? LANGUAGE_TEST_DEFAULTS.typescript;
+  const [testPathInput, setTestPathInput] = useState('');
+  const testDefaultPaths = '**/test/**, docs/**';
 
   return (
     <div className="space-y-3">
@@ -392,6 +427,36 @@ function TestConfigSection({ config, onChange, color }: { config: TestConfig; on
             style={{ backgroundColor: color.accentBg, color: color.accent }}>
             Use {defaults.coverage}
           </button>
+        )}
+      </div>
+      <SectionLabel title="Write Paths" hint="Glob patterns for allowed write targets (default: use defaults below)" color={color} />
+      {config.writePaths && config.writePaths.length > 0 && (
+        <TagChips items={config.writePaths} onRemove={(i) => onChange({ writePaths: config.writePaths!.filter((_, idx) => idx !== i) })} color={color} />
+      )}
+      <div className="flex items-center gap-1.5">
+        <Input placeholder={testDefaultPaths} value={testPathInput}
+          onChange={(e) => setTestPathInput(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && testPathInput.trim()) {
+              e.preventDefault();
+              const current = config.writePaths ?? [];
+              if (!current.includes(testPathInput.trim())) onChange({ writePaths: [...current, testPathInput.trim()] });
+              setTestPathInput('');
+            }
+          }}
+          className="h-7 flex-1 max-w-xs text-xs font-mono" style={{ backgroundColor: 'oklch(0.975 0.003 75)' }} />
+        <button onClick={() => {
+          if (testPathInput.trim()) {
+            const current = config.writePaths ?? [];
+            if (!current.includes(testPathInput.trim())) onChange({ writePaths: [...current, testPathInput.trim()] });
+            setTestPathInput('');
+          }
+        }} className="flex h-7 items-center gap-1 rounded-md px-2.5 text-xs font-medium disabled:opacity-30"
+          disabled={!testPathInput.trim()} style={{ backgroundColor: color.accentBg, color: color.accent }}>+ Add</button>
+        {config.writePaths && config.writePaths.length > 0 && (
+          <button onClick={() => onChange({ writePaths: undefined })}
+            className="rounded px-2 py-1 text-[10px] font-medium whitespace-nowrap"
+            style={{ color: color.textMuted }}>Reset</button>
         )}
       </div>
     </div>
