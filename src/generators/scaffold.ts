@@ -27,7 +27,7 @@ function generateReadme(config: ProjectConfig): OutputFile {
 
   let engineSpecificGettingStarted = '';
   if (engine === 'claude-code') {
-    engineSpecificGettingStarted = `Use \`/think\`, \`/plan\`, \`/build\`, \`/review\`, \`/test\`, \`/ship\`, \`/reflect\` to drive each stage.`;
+    engineSpecificGettingStarted = `Use \`/sprint\` to run the full development cycle, or individual commands (\`/think\`, \`/build\`, etc.) for specific stages.`;
   } else if (engine === 'cursor') {
     engineSpecificGettingStarted = `Stage rules are loaded automatically via \`.cursor/rules/\`. Reference them with \`@think\`, \`@plan\`, etc. in your prompts.`;
   } else if (engine === 'codex') {

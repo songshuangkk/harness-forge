@@ -554,3 +554,185 @@ export function generateClaudeCommands(config: ProjectConfig): OutputFile[] {
 
   return files;
 }
+
+// ── Unified Sprint Command ──
+
+export function generateSprintCommand(config: ProjectConfig): OutputFile | null {
+  const enabledStages = config.flow.sprint
+    .filter((s) => s.enabled)
+    .sort((a, b) => a.order - b.order);
+
+  if (enabledStages.length === 0) return null;
+
+  const allConstraints = config.flow.constraints;
+  const configuredRoles = config.flow.roles;
+
+  const flowDiagram = enabledStages
+    .map((s) => s.name.charAt(0).toUpperCase() + s.name.slice(1))
+    .join(' → ');
+
+  const lines: string[] = [
+    '---',
+    'description: Execute a full sprint — auto-guides through all enabled stages',
+    '---',
+    '',
+    '# Sprint — Full Development Cycle',
+    '',
+    `Auto-guides through: ${flowDiagram}`,
+    'Resumes from wherever you left off, or starts fresh.',
+    '',
+    '## Initialization (MANDATORY — do this first)',
+    '',
+    '1. Run: `bash .claude/scripts/session-init.sh` (idempotent — safe to re-run)',
+    '2. Run: `bash .harness/scripts/check.sh` to see current state',
+    '3. Read `.harness/state.json` to determine your position:',
+    '   - If `sprint.started_at` is empty → fresh start, begin at **Stage 1** below',
+    '   - If `sprint.current` is set and `gates.{current}.passed` is true → advance to next stage',
+    '   - If `sprint.current` is set and `gates.{current}.passed` is false → continue current stage',
+    '',
+    'Now execute each stage in order. For each stage, follow its Entry Protocol, execute its Process, then advance.',
+    '',
+  ];
+
+  // Render each enabled stage as a section
+  let renderedIdx = 0;
+  for (let i = 0; i < enabledStages.length; i++) {
+    const stage = enabledStages[i];
+    const isLast = i === enabledStages.length - 1;
+    const nextStage = enabledStages[i + 1];
+
+    // Get stage title and process (reuse existing generators)
+    let title: string;
+    let process: string;
+
+    if (stage.name === 'plan') {
+      title = 'Plan — Multi-Role Architecture Review';
+      const planConfig = stage.stageConfig as PlanConfig | undefined;
+      process = generatePlanProcess(planConfig?.taskStructure ?? 'simple');
+    } else if (stage.name === 'build') {
+      title = 'Build — Implementation';
+      const buildConfig = stage.stageConfig as BuildConfig | undefined;
+      process = generateBuildProcess(
+        buildConfig?.executionStrategy ?? 'single-agent',
+        buildConfig?.tddMode ?? 'optional'
+      );
+    } else {
+      const cmd = STATIC_COMMANDS[stage.name];
+      if (!cmd) continue;
+      title = cmd.title;
+      process = cmd.process;
+    }
+
+    renderedIdx++;
+    const stageNum = renderedIdx;
+
+    const primaryRole = stage.roles[0];
+    if (!primaryRole) continue;
+    const primaryRoleLabel = getRolePrompt(primaryRole, configuredRoles).label;
+
+    // Section separator
+    lines.push('---');
+    lines.push('');
+    lines.push(`## Stage ${stageNum}: ${title}`);
+    lines.push('');
+
+    // Entry protocol
+    lines.push('### Entry Protocol');
+    lines.push('');
+    lines.push(`1. Run: \`bash .claude/hooks/transition.sh ${stage.name}\``);
+    lines.push('   - If it fails, DO NOT proceed. Tell the user which gates are blocking.');
+    lines.push(`2. You are now in stage **${title}** acting as **${primaryRoleLabel}**.`);
+    lines.push(`3. Read \`.harness/roles/${primaryRole}.md\` for your role definition.`);
+    lines.push('');
+
+    // Process (reuse existing content generators)
+    lines.push(process);
+    lines.push('');
+
+    // Role perspectives
+    const roleSection = renderRolePerspectives(stage.roles, configuredRoles);
+    if (roleSection) {
+      lines.push(roleSection);
+    }
+
+    // Gates
+    lines.push('### Gates (must pass before advancing)');
+    lines.push('');
+    if (stage.gates.length > 0) {
+      for (const gate of stage.gates) {
+        lines.push(`- [ ] ${gate}`);
+      }
+    } else {
+      lines.push('None configured.');
+    }
+    lines.push('');
+
+    // Constraints
+    const stageConstraints = allConstraints.filter(
+      (c) => c.stageId === stage.id || c.stageId === '*'
+    );
+    lines.push('### Constraints');
+    lines.push('');
+    if (stageConstraints.length > 0) {
+      for (const c of stageConstraints) {
+        const marker = c.enforced ? '[ENFORCED]' : '[advisory]';
+        lines.push(`- ${marker} ${c.description}`);
+      }
+    } else {
+      lines.push('None.');
+    }
+    lines.push('');
+
+    // Stage config
+    if (stage.stageConfig) {
+      const json = formatStageConfigJson(stage.name, stage.stageConfig);
+      if (json) {
+        lines.push('### Stage Config');
+        lines.push('');
+        lines.push('```json');
+        lines.push(json);
+        lines.push('```');
+        lines.push('');
+      }
+    }
+
+    // Stage completion / advance
+    lines.push('### Stage Completion');
+    lines.push('');
+    lines.push('When all gates pass:');
+    lines.push('- Run `bash .harness/scripts/check.sh` to confirm');
+    if (isLast) {
+      lines.push('- This is the final stage. Proceed to **Sprint Completion** below.');
+    } else {
+      const nextTitle = nextStage!.name.charAt(0).toUpperCase() + nextStage!.name.slice(1);
+      lines.push(`- Proceed to **Stage ${stageNum + 1}: ${nextTitle}** below.`);
+    }
+    lines.push('');
+  }
+
+  // Sprint completion
+  lines.push('---');
+  lines.push('');
+  lines.push('## Sprint Completion');
+  lines.push('');
+  lines.push('When all stages are complete:');
+  lines.push('1. Announce: "Sprint complete. All stages passed."');
+  lines.push('2. Summarize what was delivered (key files changed, tests passing, release status)');
+  lines.push('3. Ask: "Start a new sprint? Run `bash .claude/scripts/session-init.sh` then `/sprint`."');
+  lines.push('');
+
+  // Error recovery
+  lines.push('## Error Recovery');
+  lines.push('');
+  lines.push('If you get stuck at any point:');
+  lines.push('- Run `bash .harness/scripts/check.sh` to see current state');
+  lines.push('- If a gate is blocking, review the gate requirements in the current stage section above');
+  lines.push('- If `guard.sh` blocks a write, check the allowed paths for the current stage');
+  lines.push('- To force-restart the sprint: run `bash .claude/scripts/session-init.sh`, then `/sprint`');
+  lines.push('');
+
+  return {
+    path: '.claude/commands/sprint.md',
+    content: lines.join('\n').replace(/\n{3,}/g, '\n\n'),
+  };
+}

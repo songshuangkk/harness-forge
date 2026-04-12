@@ -43,10 +43,10 @@ export function generateClaudeMd(config: ProjectConfig): OutputFile {
     .map((s) => s.name.charAt(0).toUpperCase() + s.name.slice(1))
     .join(' → ');
 
-  // Slash command list
-  const commandList = enabledStages
-    .map((s) => `- \`/${s.name}\``)
-    .join(', ');
+  // Slash command list — /sprint is primary
+  const commandList = ['`/sprint`'].concat(
+    enabledStages.map((s) => `\`/${s.name}\``)
+  ).join(', ');
 
   // Stage → role mapping (one-liner each)
   const configuredRoles = config.flow.roles;
@@ -85,13 +85,13 @@ export function generateClaudeMd(config: ProjectConfig): OutputFile {
     ...(constraintLines.length > 0 ? ['## Enforced Constraints', '', ...constraintLines, ''] : []),
     '## Sprint Protocol',
     '',
-    'Each stage has its own write-path scope — `guard.sh` enforces this at runtime.',
-    'If a write is blocked, complete the current stage deliverables first, then advance.',
+    '**Use `/sprint` as the primary command** for any development task — it auto-guides through all enabled stages.',
+    'Individual stage commands (`/think`, `/build`, etc.) remain available for direct access.',
     '',
-    '1. Initialize: `bash .claude/scripts/session-init.sh`',
-    '2. Enter each stage with its slash command (`/think`, `/build`, etc.) — `transition.sh` validates gates before advancing',
+    '1. Start: type `/sprint` — initializes if needed, resumes from current stage',
+    '2. Each stage has its own write-path scope — `guard.sh` enforces this at runtime',
     '3. `advance.sh` checks gates after each tool use and auto-marks stage as passed',
-    '4. Stage scope: think/plan/review/reflect → `docs/**` only; build → `src/**` + `test/**` + `docs/**`; ship → unrestricted',
+    '4. `transition.sh` validates gates before stage advancement',
     '5. Check status anytime: `bash .harness/scripts/check.sh`',
     '',
     '## Security Boundary',
