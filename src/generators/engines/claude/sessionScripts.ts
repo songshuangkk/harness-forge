@@ -22,11 +22,13 @@ fi
 STATE=$(cat "$HARNESS/state.json")
 STAGE=$(echo "$STATE" | jq -r '.sprint.current')
 ROLE=$(echo "$STATE" | jq -r '.role.current')
+NUMBER=$(echo "$STATE" | jq -r '.sprint.number // "N/A"')
 HISTORY=$(echo "$STATE" | jq -r '.sprint.history | join(" → ")')
 
 echo "╔══════════════════════════════════════╗"
 echo "║        Harness State Machine         ║"
 echo "╠══════════════════════════════════════╣"
+echo "║ Sprint: #$NUMBER"
 echo "║ Stage:  $STAGE"
 echo "║ Role:   $ROLE"
 echo "║ History: \${HISTORY:-none}"
@@ -112,40 +114,43 @@ if [ \${#MISSING[@]} -gt 0 ]; then
 fi
 
 # ── Archive previous sprint artifacts & reset state ──
-# If a previous sprint existed (started_at set):
-#   1. Rename its docs with date suffix (e.g. build-report.md → build-report.2026-04-13.md)
-#   2. Remove state.json so it gets re-created fresh below (gates, stage, role all reset)
-if [ -f "$HARNESS/state.json" ] && [ -f "$HARNESS/constraints.json" ]; then
+# If state.json exists (previous sprint ran):
+#   1. Read sprint number and started_at for archive naming
+#   2. Rename artifact docs with sprint number + date suffix
+#   3. Remove state.json so it gets re-created fresh below
+if [ -f "$HARNESS/state.json" ] && [ -f "$HARNESS/stage-artifacts.json" ]; then
+  PREV_NUMBER=$(jq -r '.sprint.number // 0' "$HARNESS/state.json" 2>/dev/null || echo "0")
   PREV_STARTED=$(jq -r '.sprint.started_at // empty' "$HARNESS/state.json" 2>/dev/null || true)
   if [ -n "$PREV_STARTED" ]; then
     ARCHIVE_DATE=$(echo "$PREV_STARTED" | cut -dT -f1)
-    PATTERNS=$(jq -r '[.stages[].gates[].pattern] | unique[]' "$HARNESS/constraints.json" 2>/dev/null || true)
-    ARCHIVED_COUNT=0
-    for pattern in $PATTERNS; do
-      if [ -f "$pattern" ]; then
-        DIR=$(dirname "$pattern")
-        BASE=$(basename "$pattern")
-        NAME="\${BASE%.*}"
-        EXT="\${BASE##*.}"
-        ARCHIVE_PATH="\${DIR}/\${NAME}.\${ARCHIVE_DATE}.\${EXT}"
-        # Handle same-day collision with counter
-        COUNTER=1
-        while [ -f "$ARCHIVE_PATH" ]; do
-          ARCHIVE_PATH="\${DIR}/\${NAME}.\${ARCHIVE_DATE}.\${COUNTER}.\${EXT}"
-          COUNTER=$((COUNTER + 1))
-        done
-        mkdir -p "$DIR"
-        mv "$pattern" "$ARCHIVE_PATH"
-        ARCHIVED_COUNT=$((ARCHIVED_COUNT + 1))
-      fi
-    done
-    if [ "$ARCHIVED_COUNT" -gt 0 ]; then
-      echo "Archived $ARCHIVED_COUNT previous sprint doc(s) with suffix .\${ARCHIVE_DATE}"
-    fi
-    # Remove state.json → triggers fresh creation below (all gates reset, stage back to first)
-    rm "$HARNESS/state.json"
-    echo "Previous sprint state cleared."
+  else
+    ARCHIVE_DATE=$(date -u +%Y-%m-%d)
   fi
+  ARCHIVE_TAG=$(printf "%03d" "$PREV_NUMBER")
+  PATTERNS=$(jq -r '[.[] | .[].path] | unique[]' "$HARNESS/stage-artifacts.json" 2>/dev/null || true)
+  ARCHIVED_COUNT=0
+  for pattern in $PATTERNS; do
+    if [ -f "$pattern" ]; then
+      DIR=$(dirname "$pattern")
+      BASE=$(basename "$pattern")
+      NAME="\${BASE%.*}"
+      EXT="\${BASE##*.}"
+      ARCHIVE_PATH="\${DIR}/\${NAME}.\${ARCHIVE_TAG}.\${ARCHIVE_DATE}.\${EXT}"
+      COUNTER=1
+      while [ -f "$ARCHIVE_PATH" ]; do
+        ARCHIVE_PATH="\${DIR}/\${NAME}.\${ARCHIVE_TAG}.\${ARCHIVE_DATE}.\${COUNTER}.\${EXT}"
+        COUNTER=$((COUNTER + 1))
+      done
+      mkdir -p "$DIR"
+      mv "$pattern" "$ARCHIVE_PATH"
+      ARCHIVED_COUNT=$((ARCHIVED_COUNT + 1))
+    fi
+  done
+  if [ "$ARCHIVED_COUNT" -gt 0 ]; then
+    echo "Archived $ARCHIVED_COUNT previous sprint doc(s) as .\${ARCHIVE_TAG}.\${ARCHIVE_DATE}.*"
+  fi
+  rm "$HARNESS/state.json"
+  echo "Previous sprint state cleared."
 fi
 
 # Initialize state.json if not present
@@ -162,6 +167,7 @@ if [ ! -f "$HARNESS/state.json" ] && [ -f "$HARNESS/constraints.json" ]; then
   done
 
   PROJECT=$(jq -r '.project // "unnamed"' "$HARNESS/constraints.json")
+  SPRINT_NUMBER=1
 
   jq -n \\
     --arg p "$PROJECT" \\
@@ -170,7 +176,8 @@ if [ ! -f "$HARNESS/state.json" ] && [ -f "$HARNESS/constraints.json" ]; then
     --argjson t "$FIRST_TOOLS" \\
     --argjson pa "$FIRST_PATHS" \\
     --argjson g "$GATES_JSON" \\
-    '{version:1, project:$p, sprint:{current:$s,history:[],started_at:""}, role:{current:$r,allowed_tools:$t,allowed_paths:$pa}, gates:$g}' \\
+    --argjson n "$SPRINT_NUMBER" \\
+    '{version:1, project:$p, sprint:{number:$n,current:$s,history:[],started_at:""}, role:{current:$r,allowed_tools:$t,allowed_paths:$pa}, gates:$g}' \\
     > "$HARNESS/state.json"
 
   echo "State machine initialized."
