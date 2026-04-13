@@ -1,6 +1,4 @@
 import type { ProjectConfig, OutputFile } from '@/types';
-import { buildGateChecks } from './gateBuilder';
-import { renderGateScript, gateScriptPath } from './gateRenderer';
 import { hasSecretCheck } from './sandboxScripts';
 
 // ── emitEvent script (P1: Log 层接线) ──
@@ -147,6 +145,17 @@ function renderGuardScript(): string {
     '    log_block "bash-modify-state"',
     '    exit 2',
     '  fi',
+    '',
+    '  # Dangerous command patterns (global safety boundary)',
+    '  LOWER_CMD=$(echo "$CMD" | tr \'[:upper:]\' \'[:lower:]\')',
+    '  DANGER_PATTERNS=(\'rm -rf\' \'rm -r /\' \'drop table\' \'truncate table\' \'delete from\' \':(){ :|:& };:\' \'dd if=/dev/zero\' \'mkfs.\' \'> /dev/sd\')',
+    '  for PATTERN in "${DANGER_PATTERNS[@]}"; do',
+    '    if echo "$LOWER_CMD" | grep -q "$PATTERN"; then',
+    '      echo "BLOCKED: Command matches dangerous pattern: $PATTERN" >&2',
+    '      log_block "dangerous-command"',
+    '      exit 2',
+    '    fi',
+    '  done',
     'fi',
     '',
     '# Fail-closed: if jq missing, block everything to prevent silent bypass',
@@ -445,6 +454,9 @@ function renderTransitionScript(): string {
     '',
     'echo "Transitioned: $CURRENT → $TARGET (role: $NEW_ROLE)"',
     'echo "Run /$TARGET to begin the next stage."',
+    'if [ "$TARGET" = "review" ]; then',
+    '  echo "Tip: Run /code-review for a deep code quality audit."',
+    'fi',
     '',
     'exit 0',
   ].join('\n');
@@ -452,16 +464,8 @@ function renderTransitionScript(): string {
 
 // ── Main generator ──
 
-export function generateClaudeHooks(config: ProjectConfig): OutputFile[] {
-  const gateChecks = buildGateChecks(config);
+export function generateClaudeHooks(_config: ProjectConfig): OutputFile[] {
   const files: OutputFile[] = [];
-
-  for (const [gateName, checks] of gateChecks) {
-    files.push({
-      path: gateScriptPath(gateName),
-      content: renderGateScript(gateName, checks),
-    });
-  }
 
   // P1: Log layer — emitEvent on every tool use
   files.push({
@@ -500,14 +504,8 @@ export function buildClaudeHookRegistrations(
     Array<{ matcher: string; hooks: Array<{ type: string; command: string }> }>
   > = {};
 
-  // PreToolUse: guard.sh — enforce stage/role/tool constraints
+  // PreToolUse: guard.sh — enforce stage/role/tool constraints + dangerous command blocking
   registrations['PreToolUse'] = [
-    // Constraint check for Bash commands (dangerous command blocking)
-    {
-      matcher: 'Bash',
-      hooks: [{ type: 'command', command: '.claude/hooks/constraint-check.sh' }],
-    },
-    // State machine guard — check tool permissions and write paths
     {
       matcher: '',
       hooks: [{ type: 'command', command: '.claude/hooks/guard.sh' }],
