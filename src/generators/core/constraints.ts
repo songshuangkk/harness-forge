@@ -7,26 +7,35 @@ interface StageToolRules {
   allow: string[];
   deny: string[];
   writePaths: string[];
+  safeBash: string[];
 }
 
+const SAFE_BASH_COMMANDS = [
+  'mkdir', 'ls', 'cat', 'head', 'tail', 'wc',
+  'pwd', 'echo', 'which', 'type', 'test', '[',
+  'grep', 'find', 'sort', 'uniq', 'diff', 'tee',
+  'basename', 'dirname', 'realpath', 'stat',
+];
+
 function getStageToolRules(stageName: string): StageToolRules {
+  const safeBash = SAFE_BASH_COMMANDS;
   switch (stageName) {
     case 'think':
-      return { allow: ['Read', 'Grep', 'Glob', 'Write', 'Edit', 'Agent'], deny: ['Bash'], writePaths: ['docs/**'] };
+      return { allow: ['Read', 'Grep', 'Glob', 'Write', 'Edit', 'Agent'], deny: ['Bash'], writePaths: ['docs/**'], safeBash };
     case 'plan':
-      return { allow: ['Read', 'Grep', 'Glob', 'Write', 'Edit', 'Agent'], deny: ['Bash'], writePaths: ['docs/**'] };
+      return { allow: ['Read', 'Grep', 'Glob', 'Write', 'Edit', 'Agent'], deny: ['Bash'], writePaths: ['docs/**'], safeBash };
     case 'build':
-      return { allow: ['Read', 'Grep', 'Glob', 'Write', 'Edit', 'Bash', 'Agent'], deny: [], writePaths: ['**/src/**', '**/test/**', 'docs/**'] };
+      return { allow: ['Read', 'Grep', 'Glob', 'Write', 'Edit', 'Bash', 'Agent'], deny: [], writePaths: ['**/src/**', '**/test/**', 'docs/**'], safeBash: [] };
     case 'review':
-      return { allow: ['Read', 'Grep', 'Glob', 'Write', 'Edit'], deny: ['Bash'], writePaths: ['docs/**'] };
+      return { allow: ['Read', 'Grep', 'Glob', 'Write', 'Edit'], deny: ['Bash'], writePaths: ['docs/**'], safeBash };
     case 'test':
-      return { allow: ['Read', 'Grep', 'Glob', 'Write', 'Edit', 'Bash'], deny: [], writePaths: ['**/test/**', 'docs/**'] };
+      return { allow: ['Read', 'Grep', 'Glob', 'Write', 'Edit', 'Bash'], deny: [], writePaths: ['**/test/**', 'docs/**'], safeBash: [] };
     case 'ship':
-      return { allow: ['Read', 'Grep', 'Glob', 'Write', 'Edit', 'Bash'], deny: [], writePaths: ['**'] };
+      return { allow: ['Read', 'Grep', 'Glob', 'Write', 'Edit', 'Bash'], deny: [], writePaths: ['**'], safeBash: [] };
     case 'reflect':
-      return { allow: ['Read', 'Grep', 'Glob', 'Write', 'Edit'], deny: ['Bash'], writePaths: ['docs/**'] };
+      return { allow: ['Read', 'Grep', 'Glob', 'Write', 'Edit'], deny: ['Bash'], writePaths: ['docs/**'], safeBash };
     default:
-      return { allow: [], deny: [], writePaths: [] };
+      return { allow: [], deny: [], writePaths: [], safeBash: [] };
   }
 }
 
@@ -43,16 +52,17 @@ function resolveWritePaths(stageName: string, stageConfig?: Record<string, unkno
 
 interface GateDef {
   id: string;
-  type: 'file_exists' | 'file_nonempty' | 'file_contains';
+  type: 'file_exists' | 'file_nonempty' | 'file_contains' | 'command_exit';
   pattern: string;
   description: string;
   marker?: string;
+  command?: string;
 }
 
 interface StageDef {
   name: string;
   roles: string[];
-  tools: { allow: string[]; deny: string[] };
+  tools: { allow: string[]; deny: string[]; safeBash: string[] };
   paths: { write: string[] };
   gates: GateDef[];
   next: string | null;
@@ -99,6 +109,25 @@ function generateConstraintsJson(config: ProjectConfig): string {
     // Artifact-based gates
     for (let j = 0; j < artifacts.length; j++) {
       const artifact = artifacts[j];
+
+      // Command gates: resolve placeholder with tech-stack-specific command
+      if (artifact.verification === 'command') {
+        const defaults = LANGUAGE_TEST_DEFAULTS[config.project.techStack.language] ?? LANGUAGE_TEST_DEFAULTS.typescript;
+        const resolvedCommand = artifact.command === '__TEST_COMMAND__'
+          ? defaults.test
+          : (artifact.command ?? defaults.test);
+        const baseId = artifact.path.split('/').pop()?.replace(/\..*$/, '') ?? 'output';
+        const gateId = `${stage.name}-${baseId}${j > 0 ? `-${j}` : ''}`;
+        gates.push({
+          id: gateId,
+          type: 'command_exit',
+          pattern: artifact.path,
+          description: artifact.description,
+          command: resolvedCommand,
+        });
+        continue;
+      }
+
       const baseId = artifact.path.split('/').pop()?.replace(/\..*$/, '') ?? 'output';
       const gateId = `${stage.name}-${baseId}${j > 0 ? `-${j}` : ''}`;
       gates.push({
@@ -142,7 +171,7 @@ function generateConstraintsJson(config: ProjectConfig): string {
     stages.push({
       name: stage.name,
       roles: [...stage.roles],
-      tools: { allow: toolRules.allow, deny: toolRules.deny },
+      tools: { allow: toolRules.allow, deny: toolRules.deny, safeBash: toolRules.safeBash },
       paths: { write: resolvedWritePaths },
       gates,
       next: nextStage?.name ?? null,

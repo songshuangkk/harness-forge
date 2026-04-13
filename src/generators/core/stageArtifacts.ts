@@ -92,6 +92,12 @@ export const DEFAULT_STAGE_ARTIFACTS: Record<StageName, OutputArtifact[]> = {
       verification: 'contains-section',
       sectionMarker: '## Coverage',
     },
+    {
+      path: '.harness/gates/test-suite-pass',
+      description: 'Test suite passes with exit code 0 (command gate)',
+      verification: 'command',
+      command: '__TEST_COMMAND__',
+    },
   ],
   ship: [
     {

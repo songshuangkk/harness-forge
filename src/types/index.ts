@@ -131,8 +131,10 @@ export interface ShipConfig {
 export interface OutputArtifact {
   path: string;
   description: string;
-  verification: 'exists' | 'non-empty' | 'contains-section';
+  verification: 'exists' | 'non-empty' | 'contains-section' | 'command';
   sectionMarker?: string;
+  /** Command to execute when verification is 'command'. Exit code 0 = pass. */
+  command?: string;
 }
 
 /** Reflect — Retrospective with learning */

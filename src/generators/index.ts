@@ -8,7 +8,7 @@ import { generateCoreConstraints } from './core/constraints';
 
 // Claude Code engine adapter
 import { generateClaudeMd } from './engines/claude/claudeMd';
-import { generateClaudeCommands, generateSprintCommand } from './engines/claude/commands';
+import { generateClaudeCommands, generateSprintCommand, generateNewTaskCommand } from './engines/claude/commands';
 import { generateClaudeHooks } from './engines/claude/hooks';
 import { generateClaudeSettings } from './engines/claude/settings';
 import { generateSessionScripts } from './engines/claude/sessionScripts';
@@ -55,6 +55,7 @@ export function generateAll(config: ProjectConfig, options?: GenerateOptions): O
       files.push(...generateClaudeCommands(config));
       const sprintCmd = generateSprintCommand(config);
       if (sprintCmd) files.push(sprintCmd);
+      files.push(generateNewTaskCommand());
       files.push(...generateClaudeHooks(config));
       files.push(generateClaudeSettings(config));
       files.push(...generateSessionScripts(config));

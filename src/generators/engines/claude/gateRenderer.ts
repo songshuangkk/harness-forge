@@ -63,6 +63,18 @@ done
 exit 0`;
 }
 
+function renderCommandExit(
+  command: string | undefined,
+  description: string
+): string {
+  const cmd = command ?? 'echo "no command configured"';
+  return `# ${description}
+if ! ${cmd} >/dev/null 2>&1; then
+  echo "BLOCKED: Command gate failed: ${cmd}" >&2
+  BLOCKED=1
+fi`;
+}
+
 // ── Main renderer ──
 
 export function renderGateScript(
@@ -123,6 +135,14 @@ export function renderGateScript(
           renderFileContainsSection(
             check.params.paths ?? [],
             check.params.sectionHeader,
+            check.description
+          )
+        );
+        break;
+      case 'command-exit':
+        checkBlocks.push(
+          renderCommandExit(
+            check.params.command,
             check.description
           )
         );

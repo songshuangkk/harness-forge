@@ -7,11 +7,12 @@ export interface GateCheck {
   id: string;
   description: string;
   forStage: StageName;
-  checkType: 'file-exists' | 'file-non-empty' | 'file-contains-section' | 'command-blocklist';
+  checkType: 'file-exists' | 'file-non-empty' | 'file-contains-section' | 'command-blocklist' | 'command-exit';
   params: {
     paths?: string[];
     sectionHeader?: string;
     patterns?: string[];
+    command?: string;
   };
   exitCode: number;
 }
@@ -40,6 +41,8 @@ function artifactVerificationToCheckType(
       return 'file-non-empty';
     case 'contains-section':
       return 'file-contains-section';
+    case 'command':
+      return 'command-exit';
     default:
       return 'file-exists';
   }

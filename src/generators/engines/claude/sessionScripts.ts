@@ -111,6 +111,43 @@ if [ \${#MISSING[@]} -gt 0 ]; then
   fi
 fi
 
+# ── Archive previous sprint artifacts & reset state ──
+# If a previous sprint existed (started_at set):
+#   1. Rename its docs with date suffix (e.g. build-report.md → build-report.2026-04-13.md)
+#   2. Remove state.json so it gets re-created fresh below (gates, stage, role all reset)
+if [ -f "$HARNESS/state.json" ] && [ -f "$HARNESS/constraints.json" ]; then
+  PREV_STARTED=$(jq -r '.sprint.started_at // empty' "$HARNESS/state.json" 2>/dev/null || true)
+  if [ -n "$PREV_STARTED" ]; then
+    ARCHIVE_DATE=$(echo "$PREV_STARTED" | cut -dT -f1)
+    PATTERNS=$(jq -r '[.stages[].gates[].pattern] | unique[]' "$HARNESS/constraints.json" 2>/dev/null || true)
+    ARCHIVED_COUNT=0
+    for pattern in $PATTERNS; do
+      if [ -f "$pattern" ]; then
+        DIR=$(dirname "$pattern")
+        BASE=$(basename "$pattern")
+        NAME="\${BASE%.*}"
+        EXT="\${BASE##*.}"
+        ARCHIVE_PATH="\${DIR}/\${NAME}.\${ARCHIVE_DATE}.\${EXT}"
+        # Handle same-day collision with counter
+        COUNTER=1
+        while [ -f "$ARCHIVE_PATH" ]; do
+          ARCHIVE_PATH="\${DIR}/\${NAME}.\${ARCHIVE_DATE}.\${COUNTER}.\${EXT}"
+          COUNTER=$((COUNTER + 1))
+        done
+        mkdir -p "$DIR"
+        mv "$pattern" "$ARCHIVE_PATH"
+        ARCHIVED_COUNT=$((ARCHIVED_COUNT + 1))
+      fi
+    done
+    if [ "$ARCHIVED_COUNT" -gt 0 ]; then
+      echo "Archived $ARCHIVED_COUNT previous sprint doc(s) with suffix .\${ARCHIVE_DATE}"
+    fi
+    # Remove state.json → triggers fresh creation below (all gates reset, stage back to first)
+    rm "$HARNESS/state.json"
+    echo "Previous sprint state cleared."
+  fi
+fi
+
 # Initialize state.json if not present
 if [ ! -f "$HARNESS/state.json" ] && [ -f "$HARNESS/constraints.json" ]; then
   STAGES=$(jq -r '.stages[].name' "$HARNESS/constraints.json")
@@ -146,8 +183,9 @@ if [ -f "$HARNESS/state.json" ]; then
     && mv "$HARNESS/state.json.tmp" "$HARNESS/state.json"
 fi
 
-# Create session directory
+# Create session directory and runtime directories
 mkdir -p .claude/sessions
+mkdir -p "$HARNESS/log"
 
 # Also init legacy files for backward compat
 echo "$(jq -r '.sprint.current' "$HARNESS/state.json" 2>/dev/null || echo 'think')" > .harness/current-stage 2>/dev/null || true
@@ -286,6 +324,120 @@ exit 1
 
 // ── Main generator ──
 
+// ── Session summary script (data-driven retrospective) ──
+
+function renderSessionSummaryScript(): string {
+  return `#!/usr/bin/env bash
+# session-summary.sh — Parse events.jsonl + blocks.jsonl for Reflect stage
+# Outputs a structured sprint summary for data-driven retrospectives.
+set -uo pipefail
+
+HARNESS=".harness"
+EVENTS="$HARNESS/log/events.jsonl"
+BLOCKS="$HARNESS/log/blocks.jsonl"
+
+if ! command -v jq >/dev/null 2>&1; then
+  echo "ERROR: jq required. Install: brew install jq" >&2
+  exit 1
+fi
+
+echo "╔══════════════════════════════════════════════════╗"
+echo "║          Sprint Session Summary                  ║"
+echo "╚══════════════════════════════════════════════════╝"
+echo ""
+
+# ── Sprint Duration ──
+if [ -f "$HARNESS/state.json" ]; then
+  STARTED=$(jq -r '.sprint.started_at // empty' "$HARNESS/state.json" 2>/dev/null)
+  CURRENT=$(jq -r '.sprint.current // "unknown"' "$HARNESS/state.json" 2>/dev/null)
+  HISTORY=$(jq -r '.sprint.history | join(" → ") // "none"' "$HARNESS/state.json" 2>/dev/null)
+  echo "## Sprint Info"
+  echo "- Started: \${STARTED:-unknown}"
+  echo "- Final stage: $CURRENT"
+  echo "- Path: \${HISTORY:-none}"
+  echo ""
+fi
+
+# ── Stage Distribution ──
+if [ -f "$EVENTS" ]; then
+  TOTAL=$(wc -l < "$EVENTS" | tr -d ' ')
+  echo "## Tool Calls by Stage (\${TOTAL} total)"
+  echo ""
+  jq -r '.phase' "$EVENTS" 2>/dev/null | sort | uniq -c | sort -rn | while read count stage; do
+    pct=$((count * 100 / TOTAL))
+    printf "  %-12s %4d calls (%2d%%)\\n" "$stage" "$count" "$pct"
+  done
+  echo ""
+
+  # ── Tool Usage Breakdown ──
+  echo "## Tool Usage"
+  echo ""
+  jq -r '.tool' "$EVENTS" 2>/dev/null | sort | uniq -c | sort -rn | while read count tool; do
+    printf "  %-12s %4d\\n" "$tool" "$count"
+  done
+  echo ""
+
+  # ── Stage Timing ──
+  echo "## Estimated Stage Duration"
+  echo ""
+  STAGES=$(jq -r '.phase' "$EVENTS" 2>/dev/null | sort -u)
+  for s in $STAGES; do
+    FIRST=$(jq -r "select(.phase == \\"$s\\") | .ts" "$EVENTS" 2>/dev/null | head -1)
+    LAST=$(jq -r "select(.phase == \\"$s\\") | .ts" "$EVENTS" 2>/dev/null | tail -1)
+    if [ -n "$FIRST" ] && [ -n "$LAST" ]; then
+      FIRST_EPOCH=$(date -j -f "%Y-%m-%dT%H:%M:%SZ" "$FIRST" "+%s" 2>/dev/null || echo "0")
+      LAST_EPOCH=$(date -j -f "%Y-%m-%dT%H:%M:%SZ" "$LAST" "+%s" 2>/dev/null || echo "0")
+      DIFF=$((LAST_EPOCH - FIRST_EPOCH))
+      if [ "$DIFF" -gt 0 ]; then
+        MINS=$((DIFF / 60))
+        SECS=$((DIFF % 60))
+        printf "  %-12s ~%dm %ds (%s → %s)\\n" "$s" "$MINS" "$SECS" "$FIRST" "$LAST"
+      else
+        printf "  %-12s <1s\\n" "$s"
+      fi
+    fi
+  done
+  echo ""
+else
+  echo "## No event log found ($EVENTS)"
+  echo ""
+fi
+
+# ── Constraint Violations ──
+if [ -f "$BLOCKS" ]; then
+  BLOCK_COUNT=$(wc -l < "$BLOCKS" | tr -d ' ')
+  echo "## Constraint Blocks (\${BLOCK_COUNT} total)"
+  echo ""
+  jq -r '"\\(.stage) | \\(.tool) | \\(.reason)"' "$BLOCKS" 2>/dev/null | sort | uniq -c | sort -rn | while read count rest; do
+    printf "  %2dx  %s\\n" "$count" "$rest"
+  done
+  echo ""
+
+  # ── Bypass Detection ──
+  echo "## Potential Bypasses"
+  echo ""
+  echo "Stages with blocks but gates still passed:"
+  if [ -f "$HARNESS/state.json" ]; then
+    BLOCKED_STAGES=$(jq -r '.stage' "$BLOCKS" 2>/dev/null | sort -u)
+    for s in $BLOCKED_STAGES; do
+      PASSED=$(jq -r ".gates.\\"$s\\".passed // false" "$HARNESS/state.json" 2>/dev/null)
+      if [ "$PASSED" = "true" ]; then
+        BC=$(grep -c "\\"stage\\":\\"$s\\"" "$BLOCKS" 2>/dev/null || echo "0")
+        echo "  ⚠ $s: $BC block(s) but gate passed — possible override"
+      fi
+    done
+  fi
+  echo ""
+else
+  echo "## No constraint blocks recorded"
+  echo ""
+fi
+
+echo "---"
+echo "End of session summary."
+`;
+}
+
 export function generateSessionScripts(config: ProjectConfig): OutputFile[] {
   const { session } = config.architecture;
   const files: OutputFile[] = [];
@@ -330,6 +482,12 @@ export function generateSessionScripts(config: ProjectConfig): OutputFile[] {
   files.push({
     path: '.harness/scripts/check.sh',
     content: renderCheckScript(),
+  });
+
+  // Session summary script (consumes events.jsonl + blocks.jsonl for Reflect stage)
+  files.push({
+    path: '.harness/scripts/session-summary.sh',
+    content: renderSessionSummaryScript(),
   });
 
   return files;

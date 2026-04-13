@@ -216,25 +216,29 @@ const STATIC_COMMANDS: Partial<Record<StageName, StageCommand>> = {
   },
   reflect: {
     title: 'Reflect \u2014 Retrospective',
-    description: 'Team-aware retrospective using session event logs as data source.',
+    description: 'Data-driven retrospective using event logs and constraint audit trail.',
     process: `## Process
 
-1. **Review the session event log** \u2014 trace through all stages that were executed.
-2. **Analyze velocity**:
+1. **Generate session summary** \u2014 run \`bash .harness/scripts/session-summary.sh\` to get data-driven metrics.
+2. **Analyze velocity** (from summary output):
    - How long did each stage take?
    - Were there unexpected bottlenecks?
    - Did any stage require more iterations than expected?
-3. **Analyze quality**:
+3. **Analyze quality** (from review docs):
    - How many issues were found in review?
    - What severity levels? Were any critical?
    - How many bugs escaped to test phase?
 4. **Analyze test health**:
    - Did tests catch real issues or just confirm happy paths?
    - Is coverage meaningful or just numbers?
-   - What areas need better test coverage?
-5. **Identify improvements** \u2014 specific, actionable items for next sprint.
-6. **Persist learnings** (if configured) to project memory for future sessions.
-7. Output: retrospective report with improvement items.`,
+   - Did the command gate (test suite) pass on first try?
+5. **Analyze compliance** (from summary "Constraint Blocks" section):
+   - Were any constraints overridden during the sprint?
+   - Which stages had the most blocks?
+   - Are there bypasses that need investigation?
+6. **Identify improvements** \u2014 specific, actionable items for next sprint.
+7. **Persist learnings** (if configured) to project memory for future sessions.
+8. Output: retrospective report with improvement items.`,
   },
 };
 
@@ -734,5 +738,94 @@ export function generateSprintCommand(config: ProjectConfig): OutputFile | null 
   return {
     path: '.claude/commands/sprint.md',
     content: lines.join('\n').replace(/\n{3,}/g, '\n\n'),
+  };
+}
+
+// ── New-Task Command ──
+
+export function generateNewTaskCommand(): OutputFile {
+  const content = `---
+description: Handle a new task during an active sprint — auto-decides execution mode
+arguments:
+  - name: task
+    description: "Task description"
+    required: true
+---
+
+# New Task — Smart Dispatch
+
+You received a new task: **$ARGUMENTS**
+
+## Step 1: Assess Current Sprint State
+
+1. Read \`.harness/state.json\` to get current stage and gate status.
+2. Read \`.harness/constraints.json\` to understand the sprint scope (stages, transitions).
+
+## Step 2: Classify the Task
+
+Analyze the task and classify it into one of three categories:
+
+### Category A: Quick Fix (execute immediately, bypass stages)
+
+Criteria (ANY of these):
+- Typo fix, config tweak, one-line change
+- Hotfix / emergency bug fix
+- Unrelated to the current sprint scope (e.g., fixing a CI config while sprint builds a feature)
+- Takes < 5 minutes, no design decisions needed
+
+**Action:** Execute directly. Do NOT transition stages. The sprint state stays untouched.
+
+Process:
+1. Execute the fix using Read/Edit/Write/Bash as needed.
+2. Confirm the change works (run relevant test/lint if applicable).
+3. Tell the user: "Quick fix done. Sprint continues from the current stage."
+
+### Category B: Sprint Append (insert into current sprint)
+
+Criteria (ALL of these):
+- Directly related to the current sprint's goal/scope
+- Medium complexity — needs implementation + verification, but not a full design cycle
+- Fits into the current or next stage without disrupting flow
+
+**Action:** Append to the current sprint. No state reset.
+
+Process:
+1. Note the current stage and gate status.
+2. If currently in Think/Plan: add the task to the existing plan documents.
+3. If currently in Build: implement the task as part of the current build, update build-report.
+4. If currently in Review/Test: note the task for review/test inclusion.
+5. Continue the sprint normally from the current stage.
+
+### Category C: New Sprint (recommend restart)
+
+Criteria (ANY of these):
+- Entirely new feature, different scope from current sprint
+- Requires a full Think → Plan → Build cycle
+- Would invalidate or conflict with existing sprint artifacts
+- Large scope — multiple files, new architecture decisions
+
+**Action:** Recommend a new sprint. Do NOT execute yet.
+
+Process:
+1. Tell the user: "This task warrants a new sprint cycle."
+2. Suggest: "Complete the current sprint first, then run \`bash .claude/scripts/session-init.sh\` followed by \`/sprint\`."
+3. If the user insists on proceeding now: warn that this will reset sprint state, then execute \`bash .claude/scripts/session-init.sh\` and start a fresh sprint.
+
+## Step 3: Execute
+
+Based on your classification, execute the appropriate action above.
+
+## Important Rules
+
+- NEVER silently change sprint state for Category A tasks.
+- For Category B, update the relevant sprint artifacts (plan docs, build-report, etc.) to reflect the added task.
+- For Category C, always ask for confirmation before resetting the sprint.
+- If unsure between A and B, prefer A (less disruptive).
+- If unsure between B and C, prefer B (can always escalate later).
+`;
+
+  return {
+    path: '.claude/commands/new-task.md',
+    content,
   };
 }
