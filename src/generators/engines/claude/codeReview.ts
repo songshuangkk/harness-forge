@@ -44,7 +44,7 @@ function renderScanChecklist(
 
 // ── Deep-Dive Protocol ──
 
-function renderSpawnProtocol(severityThreshold: string): string {
+function renderSpawnProtocol(severityThreshold: 'all' | 'critical-major' | 'critical-only'): string {
   const triggerMap: Record<string, string> = {
     'critical-only': '1+ Critical findings',
     'critical-major': '3+ Critical or Major findings',
@@ -82,7 +82,7 @@ function renderSpawnProtocol(severityThreshold: string): string {
 
 // ── Output Template ──
 
-function renderOutputTemplate(autoFix: string): string {
+function renderOutputTemplate(autoFix: 'auto' | 'report-only'): string {
   const lines: string[] = ['## Output Format', '']
 
   if (autoFix === 'auto') {
@@ -132,7 +132,7 @@ export function generateCodeReviewCommand(config: ProjectConfig): OutputFile | n
 
   if (!reviewStage) return null
 
-  const reviewConfig = (reviewStage.stageConfig as ReviewConfig) ?? {
+  const reviewConfig = (reviewStage.stageConfig as ReviewConfig | undefined) ?? {
     reviewDimensions: [],
     autoFix: 'report-only',
     severityThreshold: 'critical-major',
