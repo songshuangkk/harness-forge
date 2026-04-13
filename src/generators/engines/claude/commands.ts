@@ -124,7 +124,7 @@ ${tddMode === 'enforced' ? '4' : '4'}. **Follow the task order** from the plan u
 ${tddMode === 'enforced' ? '5' : '5'}. **Commit incrementally** \u2014 one logical change per commit with a clear message.
 ${tddMode === 'enforced' ? '6' : '6'}. **Run existing tests** after each task to catch regressions early.
 ${tddMode === 'enforced' ? '7' : '7'}. **Document any deviations** from the plan and why they were necessary.
-${tddMode === 'enforced' ? '8' : '8'}. Write build report to \`docs/reports/build-report.md\`.`);
+${tddMode === 'enforced' ? '8' : '8'}. Create a **new** build report at \`docs/reports/build-report.md\`. If the file already exists, run \`bash .claude/scripts/session-init.sh\` to archive the previous sprint first, then retry.`);
 
   return parts.join('\n');
 }
@@ -167,7 +167,7 @@ const STATIC_COMMANDS: Partial<Record<StageName, StageCommand>> = {
    - **Major**: Performance degradation, poor error handling, missing tests for critical paths
    - **Minor**: Code style, naming, minor optimization opportunities
 4. **Auto-fix** obvious issues if configured (formatting, simple refactors).
-5. Write the review report to \`docs/reviews/review-report.md\`.
+5. Create a **new** review report at \`docs/reviews/quality-audit.md\`. If the file already exists, run \`bash .claude/scripts/session-init.sh\` to archive the previous sprint first, then retry.
 6. Output: review report with severity-rated issues and fix recommendations.`,
   },
   test: {
@@ -187,7 +187,7 @@ const STATIC_COMMANDS: Partial<Record<StageName, StageCommand>> = {
    - Measure load times for key operations
    - Check for memory leaks under sustained use
 7. **Collect evidence** \u2014 screenshots, logs, metrics. No claims without evidence.
-8. Write test report to \`docs/reports/test-report.md\` with:
+8. Create a **new** test report at \`docs/reports/test-report.md\`. If the file already exists, run \`bash .claude/scripts/session-init.sh\` to archive the previous sprint first, then retry.
    - Test results summary (pass/fail/skip)
    - Coverage percentage vs. target
    - Evidence package for each test type
@@ -792,8 +792,8 @@ Criteria (ALL of these):
 Process:
 1. Note the current stage and gate status.
 2. If currently in Think/Plan: add the task to the existing plan documents.
-3. If currently in Build: implement the task as part of the current build, update build-report.
-4. If currently in Review/Test: note the task for review/test inclusion.
+3. If currently in Build: implement the task as part of the current build. **Append** to the existing build-report \u2014 do not overwrite previous entries.
+4. If currently in Review/Test: note the task for review/test inclusion. **Append** findings to existing report files.
 5. Continue the sprint normally from the current stage.
 
 ### Category C: New Sprint (recommend restart)
@@ -818,7 +818,7 @@ Based on your classification, execute the appropriate action above.
 ## Important Rules
 
 - NEVER silently change sprint state for Category A tasks.
-- For Category B, update the relevant sprint artifacts (plan docs, build-report, etc.) to reflect the added task.
+- For Category B, **append** to existing sprint docs \u2014 never overwrite. Use Edit tool to add new sections; do not Write the entire file from scratch.
 - For Category C, always ask for confirmation before resetting the sprint.
 - If unsure between A and B, prefer A (less disruptive).
 - If unsure between B and C, prefer B (can always escalate later).
