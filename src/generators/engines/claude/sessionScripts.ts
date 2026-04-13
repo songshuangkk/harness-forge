@@ -167,7 +167,7 @@ if [ ! -f "$HARNESS/state.json" ] && [ -f "$HARNESS/constraints.json" ]; then
   done
 
   PROJECT=$(jq -r '.project // "unnamed"' "$HARNESS/constraints.json")
-  SPRINT_NUMBER=1
+  SPRINT_NUMBER=$(( \${PREV_NUMBER:-0} + 1 ))
 
   jq -n \\
     --arg p "$PROJECT" \\
@@ -180,7 +180,7 @@ if [ ! -f "$HARNESS/state.json" ] && [ -f "$HARNESS/constraints.json" ]; then
     '{version:1, project:$p, sprint:{number:$n,current:$s,history:[],started_at:""}, role:{current:$r,allowed_tools:$t,allowed_paths:$pa}, gates:$g}' \\
     > "$HARNESS/state.json"
 
-  echo "State machine initialized."
+  echo "State machine initialized (sprint #$SPRINT_NUMBER)."
 fi
 
 # Write started_at timestamp

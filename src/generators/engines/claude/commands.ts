@@ -372,7 +372,7 @@ function renderRoleSubCommand(
     lines.push('- **Concerns**: What needs attention, with severity');
     lines.push('- **Recommendations**: Specific changes to improve the plan');
   } else {
-    lines.push('Append your findings to `docs/reviews/review-report.md`:');
+    lines.push('Append your findings to `docs/reviews/quality-audit.md`:');
     lines.push('- **Section header**: Use `## {Role Label} Review`');
     lines.push('- **Issues found**: List with severity (Critical/Major/Minor)');
     lines.push('- **Sign-off**: Add your sign-off under `## Sign-offs` if approved');
