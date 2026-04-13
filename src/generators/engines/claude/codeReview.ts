@@ -24,7 +24,7 @@ function renderScanChecklist(
     const prompt = getRolePrompt(roleId, configuredRoles)
     if (prompt.reviewFocus.length > 0) {
       for (const focus of prompt.reviewFocus) {
-        lines.push(`- [ ] ${focus}`)
+        lines.push(`- [ ] **${prompt.label}**: ${focus}`)
       }
     }
   }
@@ -94,29 +94,29 @@ function renderOutputTemplate(autoFix: 'auto' | 'report-only'): string {
   }
 
   lines.push('```markdown')
-  lines.push('# Code Review Report')
+  lines.push('## Code Review — {timestamp}')
   lines.push('')
-  lines.push('## Spec Compliance')
+  lines.push('### Spec Compliance')
   lines.push('')
-  lines.push('| Criterion | Status | Notes |')
-  lines.push('|-----------|--------|-------|')
-  lines.push('| ... | Pass / Fail / Partial | ... |')
+  lines.push('| # | Criterion | Status | Notes |')
+  lines.push('|---|-----------|--------|-------|')
+  lines.push('| 1 | {acceptance criterion} | ✅/❌ | {detail} |')
   lines.push('')
-  lines.push('## Quality Findings')
+  lines.push('### Quality Findings')
   lines.push('')
-  lines.push('| Severity | Area | Description | File:Line |')
-  lines.push('|----------|------|-------------|-----------|')
-  lines.push('| Critical/Major/Minor | ... | ... | ... |')
+  lines.push('| # | Severity | Area | Description | File:Line |')
+  lines.push('|---|----------|------|-------------|-----------|')
+  lines.push('| 1 | Critical/Major/Minor | {area} | {description} | {path}:{line} |')
   lines.push('')
-  lines.push('## Deep-Dive Reports')
+  lines.push('### Deep-Dive Reports')
   lines.push('')
-  lines.push('_(Populated by sub-agents when spawn threshold is met)_')
+  lines.push('(If sub-agents were spawned, summarize their findings here)')
   lines.push('')
-  lines.push('## Sign-off')
+  lines.push('### Sign-off')
   lines.push('')
-  lines.push('- [ ] All Critical issues resolved or documented')
-  lines.push('- [ ] All Major issues resolved or have remediation plan')
-  lines.push('- [ ] Spec compliance verified')
+  lines.push('- [ ] No Critical issues remaining')
+  lines.push('- [ ] No Major issues remaining (or all triaged)')
+  lines.push('- [ ] All acceptance criteria met')
   lines.push('```')
   lines.push('')
 
