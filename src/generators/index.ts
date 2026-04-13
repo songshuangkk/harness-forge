@@ -10,6 +10,7 @@ import { generateCoreConstraints } from './core/constraints';
 import { generateClaudeMd } from './engines/claude/claudeMd';
 import { generateClaudeCommands, generateSprintCommand, generateNewTaskCommand } from './engines/claude/commands';
 import { generateClaudeHooks } from './engines/claude/hooks';
+import { generateCodeReviewCommand } from './engines/claude/codeReview';
 import { generateClaudeSettings } from './engines/claude/settings';
 import { generateSessionScripts } from './engines/claude/sessionScripts';
 import { generateSandboxScripts } from './engines/claude/sandboxScripts';
@@ -56,6 +57,8 @@ export function generateAll(config: ProjectConfig, options?: GenerateOptions): O
       const sprintCmd = generateSprintCommand(config);
       if (sprintCmd) files.push(sprintCmd);
       files.push(generateNewTaskCommand());
+      const codeReviewCmd = generateCodeReviewCommand(config);
+      if (codeReviewCmd) files.push(codeReviewCmd);
       files.push(...generateClaudeHooks(config));
       files.push(generateClaudeSettings(config));
       files.push(...generateSessionScripts(config));
@@ -87,6 +90,17 @@ export function generateAll(config: ProjectConfig, options?: GenerateOptions): O
   // 4. Merge mode: add import script
   if (mergeMode) {
     files.push(generateMergeScript(config));
+  }
+
+  // 5. Deduplicate by path — last writer wins
+  const seen = new Map<string, number>();
+  for (let i = 0; i < files.length; i++) {
+    const prev = seen.get(files[i].path);
+    if (prev !== undefined) {
+      files.splice(prev, 1);
+      i--; // adjust index after splice
+    }
+    seen.set(files[i].path, i);
   }
 
   return files;
