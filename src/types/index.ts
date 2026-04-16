@@ -135,6 +135,8 @@ export interface OutputArtifact {
   sectionMarker?: string;
   /** Command to execute when verification is 'command'. Exit code 0 = pass. */
   command?: string;
+  /** For command gates: true = block stage transition on failure, false = warn only. Default: true */
+  blockOnFail?: boolean;
 }
 
 /** Reflect — Retrospective with learning */
