@@ -1,4 +1,4 @@
-import type { ProjectConfig, OutputFile, ConstraintType, Language } from '@/types';
+import type { ProjectConfig, OutputFile, ConstraintType } from '@/types';
 import { getStageArtifacts } from './stageArtifacts';
 
 // ── Stage tool rules for hook state machine ──
@@ -57,6 +57,7 @@ interface GateDef {
   description: string;
   marker?: string;
   command?: string;
+  blockOnFail?: boolean;
 }
 
 interface StageDef {
@@ -110,26 +111,64 @@ function generateConstraintsJson(config: ProjectConfig): string {
     for (let j = 0; j < artifacts.length; j++) {
       const artifact = artifacts[j];
 
+      // Generate a readable gate ID using section marker when available
+      const baseId = artifact.path.split('/').pop()?.replace(/\..*$/, '') ?? 'output';
+      const sectionSlug = artifact.sectionMarker
+        ?.replace(/^##\s*/, '')
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/-+$/, '') ?? '';
+      const gateId = sectionSlug
+        ? `${stage.name}-${baseId}-${sectionSlug}`
+        : `${stage.name}-${baseId}`;
+
       // Command gates: resolve placeholder with tech-stack-specific command
       if (artifact.verification === 'command') {
-        const defaults = LANGUAGE_TEST_DEFAULTS[config.project.techStack.language] ?? LANGUAGE_TEST_DEFAULTS.typescript;
-        const resolvedCommand = artifact.command === '__TEST_COMMAND__'
-          ? defaults.test
-          : (artifact.command ?? defaults.test);
-        const baseId = artifact.path.split('/').pop()?.replace(/\..*$/, '') ?? 'output';
-        const gateId = `${stage.name}-${baseId}${j > 0 ? `-${j}` : ''}`;
+        const lang = config.project.techStack.language;
+        const actionDefaults = LANGUAGE_ACTION_DEFAULTS[lang] ?? LANGUAGE_ACTION_DEFAULTS.typescript;
+        let resolvedCommand: string;
+
+        const cmd = artifact.command ?? '';
+        switch (cmd) {
+          case '__TEST_COMMAND__':
+            resolvedCommand = LANGUAGE_TEST_DEFAULTS[lang]?.test ?? 'echo "skip"';
+            break;
+          case '__BUILD_LINT__':
+            resolvedCommand = actionDefaults.build_lint ?? 'echo "skip"';
+            break;
+          case '__BUILD_TYPECHECK__':
+            resolvedCommand = actionDefaults.build_typecheck ?? 'echo "skip"';
+            break;
+          case '__REVIEW_DIFF_LINT__':
+            resolvedCommand = actionDefaults.review_diff_lint ?? 'echo "skip"';
+            break;
+          case '__SHIP_BUILD__':
+            resolvedCommand = actionDefaults.ship_build ?? 'echo "skip"';
+            break;
+          case '__THINK_VALIDATE__':
+            resolvedCommand = VALIDATE_COMMANDS.think;
+            break;
+          case '__PLAN_VALIDATE__':
+            resolvedCommand = VALIDATE_COMMANDS.plan;
+            break;
+          case '__REFLECT_VALIDATE__':
+            resolvedCommand = VALIDATE_COMMANDS.reflect;
+            break;
+          default:
+            resolvedCommand = cmd || 'echo "skip"';
+        }
+
         gates.push({
           id: gateId,
           type: 'command_exit',
           pattern: artifact.path,
           description: artifact.description,
           command: resolvedCommand,
+          blockOnFail: artifact.blockOnFail ?? true,
         });
         continue;
       }
 
-      const baseId = artifact.path.split('/').pop()?.replace(/\..*$/, '') ?? 'output';
-      const gateId = `${stage.name}-${baseId}${j > 0 ? `-${j}` : ''}`;
       gates.push({
         id: gateId,
         type: artifact.verification === 'exists' ? 'file_exists' : artifact.verification === 'non-empty' ? 'file_nonempty' : 'file_contains',
@@ -183,7 +222,14 @@ function generateConstraintsJson(config: ProjectConfig): string {
       for (let j = 0; j < artifacts.length; j++) {
         const artifact = artifacts[j];
         const baseId = artifact.path.split('/').pop()?.replace(/\..*$/, '') ?? 'output';
-        const gateId = `${stage.name}-${baseId}${j > 0 ? `-${j}` : ''}`;
+        const sectionSlug = artifact.sectionMarker
+          ?.replace(/^##\s*/, '')
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, '-')
+          .replace(/-+$/, '') ?? '';
+        const gateId = sectionSlug
+          ? `${stage.name}-${baseId}-${sectionSlug}`
+          : `${stage.name}-${baseId}`;
         requires.push(gateId);
       }
       for (const c of enforcedConstraints) {
@@ -266,6 +312,55 @@ const LANGUAGE_TEST_DEFAULTS: Record<string, { test: string; coverage: string }>
   java:       { test: 'mvn test', coverage: 'mvn test jacoco:report' },
   rust:       { test: 'cargo test', coverage: 'cargo tarpaulin' },
   dart:       { test: 'flutter test', coverage: 'flutter test --coverage' },
+};
+
+const LANGUAGE_ACTION_DEFAULTS: Record<string, Record<string, string>> = {
+  typescript: {
+    build_lint: 'npm run lint',
+    build_typecheck: 'npx tsc --noEmit',
+    review_diff_lint: 'npx eslint $(git diff --name-only HEAD~1 -- "*.ts" "*.tsx")',
+    ship_build: 'npm run build',
+  },
+  javascript: {
+    build_lint: 'npm run lint',
+    review_diff_lint: 'npx eslint $(git diff --name-only HEAD~1 -- "*.js" "*.jsx")',
+    ship_build: 'npm run build',
+  },
+  python: {
+    build_lint: 'ruff check .',
+    build_typecheck: 'mypy .',
+    review_diff_lint: 'ruff check $(git diff --name-only HEAD~1 -- "*.py")',
+    ship_build: 'python -m build',
+  },
+  go: {
+    build_lint: 'golangci-lint run ./...',
+    build_typecheck: 'go vet ./...',
+    review_diff_lint: 'golangci-lint run $(git diff --name-only HEAD~1 -- "*.go")',
+    ship_build: 'go build ./...',
+  },
+  java: {
+    build_lint: './mvnw checkstyle:check',
+    build_typecheck: './mvnw compile',
+    review_diff_lint: './mvnw checkstyle:check',
+    ship_build: './mvnw package -DskipTests',
+  },
+  rust: {
+    build_lint: 'cargo clippy -- -D warnings',
+    build_typecheck: 'cargo check',
+    review_diff_lint: 'cargo clippy -- -D warnings',
+    ship_build: 'cargo build --release',
+  },
+  dart: {
+    build_lint: 'dart analyze',
+    review_diff_lint: 'dart analyze $(git diff --name-only HEAD~1 -- "*.dart")',
+    ship_build: 'flutter build apk',
+  },
+};
+
+const VALIDATE_COMMANDS: Record<string, string> = {
+  think: 'grep -q "## Problem Statement" docs/design/problem-statement.md && grep -q "## Scope" docs/design/scope.md && grep -q "## Success Metrics" docs/design/success-metrics.md',
+  plan: 'grep -q "## Tasks" docs/plans/implementation-plan.md && grep -q "## Risks" docs/plans/risk-assessment.md',
+  reflect: 'grep -q "## Action Items" docs/retrospectives/retro-report.md',
 };
 
 export function generateCoreConstraints(config: ProjectConfig): OutputFile[] {
