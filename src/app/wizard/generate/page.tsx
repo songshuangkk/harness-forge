@@ -8,6 +8,7 @@ import { useProjectConfig } from '@/store/useProjectConfig';
 import { generateAll } from '@/generators';
 import { downloadZip } from '@/lib/downloadZip';
 import { FilePreview } from '@/components/wizard/FilePreview';
+import type { OutputFile } from '@/types';
 
 const STEP_PATHS = [
   '/wizard',
@@ -49,6 +50,52 @@ function categorizeFile(path: string): 'core' | 'adapter' | 'docs' {
   }
   // Default remaining to adapter (settings, configs)
   return 'adapter';
+}
+
+function StageActionsPreview({ files }: { files: OutputFile[] }) {
+  const constraintsFile = files.find(f => f.path === '.harness/constraints.json');
+  if (!constraintsFile) return null;
+
+  try {
+    const constraints = JSON.parse(constraintsFile.content);
+    const actionGates: { stage: string; id: string; command: string; block: boolean }[] = [];
+    for (const stage of constraints.stages ?? []) {
+      for (const gate of stage.gates ?? []) {
+        if (gate.type === 'command_exit') {
+          actionGates.push({
+            stage: stage.name,
+            id: gate.id,
+            command: gate.command,
+            block: gate.blockOnFail ?? true,
+          });
+        }
+      }
+    }
+    if (actionGates.length === 0) return null;
+
+    return (
+      <div className="space-y-3">
+        <div className="flex items-center gap-2">
+          <p className="text-xs font-semibold uppercase tracking-widest text-ink-muted">Stage Actions</p>
+          <span className="rounded-full bg-copper/10 px-2 py-0.5 text-[10px] font-medium text-copper">{actionGates.length} gates</span>
+        </div>
+        <p className="text-xs text-ink-muted">Commands executed during stage transitions to verify readiness</p>
+        <div className="space-y-1.5">
+          {actionGates.map((gate) => (
+            <div key={gate.id} className="flex items-center gap-3 rounded-lg bg-paper-warm px-3 py-2 text-xs">
+              <span className="w-16 shrink-0 font-mono text-[11px] text-ink-muted">{gate.stage}</span>
+              <code className="flex-1 truncate font-mono text-[11px] text-ink-secondary">{gate.command}</code>
+              <span className={`shrink-0 rounded px-2 py-0.5 text-[10px] font-medium ${gate.block ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'}`}>
+                {gate.block ? 'Block' : 'Warn'}
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  } catch {
+    return null;
+  }
 }
 
 export default function GeneratePage() {
@@ -150,6 +197,9 @@ export default function GeneratePage() {
           <strong className="text-copper">Merge mode enabled.</strong> The ZIP will include a <code className="rounded bg-paper px-1 py-0.5 text-xs">harness-import.sh</code> script that safely merges harness infrastructure into an existing project without overwriting files. Run it with <code className="rounded bg-paper px-1 py-0.5 text-xs">--dry-run</code> to preview first.
         </div>
       )}
+
+      {/* Stage Actions */}
+      <StageActionsPreview files={files} />
 
       {/* File preview */}
       <FilePreview files={files} />
