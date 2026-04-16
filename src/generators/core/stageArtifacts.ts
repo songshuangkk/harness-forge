@@ -24,6 +24,13 @@ export const DEFAULT_STAGE_ARTIFACTS: Record<StageName, OutputArtifact[]> = {
       verification: 'contains-section',
       sectionMarker: '## Success Metrics',
     },
+    {
+      path: '.harness/gates/think-docs-valid',
+      description: 'Think stage documents have required sections',
+      verification: 'command',
+      command: '__THINK_VALIDATE__',
+      blockOnFail: false,
+    },
   ],
   plan: [
     {
@@ -44,6 +51,13 @@ export const DEFAULT_STAGE_ARTIFACTS: Record<StageName, OutputArtifact[]> = {
       verification: 'contains-section',
       sectionMarker: '## Risks',
     },
+    {
+      path: '.harness/gates/plan-docs-valid',
+      description: 'Plan documents have required task breakdown and risks',
+      verification: 'command',
+      command: '__PLAN_VALIDATE__',
+      blockOnFail: false,
+    },
   ],
   build: [
     {
@@ -57,6 +71,20 @@ export const DEFAULT_STAGE_ARTIFACTS: Record<StageName, OutputArtifact[]> = {
       description: 'Test coverage report for implemented code',
       verification: 'contains-section',
       sectionMarker: '## Test Coverage',
+    },
+    {
+      path: '.harness/gates/build-lint',
+      description: 'Lint check passes with exit code 0',
+      verification: 'command',
+      command: '__BUILD_LINT__',
+      blockOnFail: true,
+    },
+    {
+      path: '.harness/gates/build-typecheck',
+      description: 'Type check passes with exit code 0',
+      verification: 'command',
+      command: '__BUILD_TYPECHECK__',
+      blockOnFail: true,
     },
   ],
   review: [
@@ -77,6 +105,13 @@ export const DEFAULT_STAGE_ARTIFACTS: Record<StageName, OutputArtifact[]> = {
       description: 'Security scan: OWASP top 10, injection, auth, data exposure',
       verification: 'contains-section',
       sectionMarker: '## Security Findings',
+    },
+    {
+      path: '.harness/gates/review-diff-lint',
+      description: 'No lint errors in changed files',
+      verification: 'command',
+      command: '__REVIEW_DIFF_LINT__',
+      blockOnFail: true,
     },
   ],
   test: [
@@ -112,6 +147,13 @@ export const DEFAULT_STAGE_ARTIFACTS: Record<StageName, OutputArtifact[]> = {
       verification: 'contains-section',
       sectionMarker: '## Checklist',
     },
+    {
+      path: '.harness/gates/ship-build',
+      description: 'Production build succeeds',
+      verification: 'command',
+      command: '__SHIP_BUILD__',
+      blockOnFail: true,
+    },
   ],
   reflect: [
     {
@@ -125,6 +167,13 @@ export const DEFAULT_STAGE_ARTIFACTS: Record<StageName, OutputArtifact[]> = {
       description: 'Lessons learned for future sprints and team knowledge base',
       verification: 'contains-section',
       sectionMarker: '## Lessons',
+    },
+    {
+      path: '.harness/gates/reflect-docs-valid',
+      description: 'Retrospective documents have required sections',
+      verification: 'command',
+      command: '__REFLECT_VALIDATE__',
+      blockOnFail: false,
     },
   ],
 };
