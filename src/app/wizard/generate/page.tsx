@@ -91,6 +91,13 @@ function StageActionsPreview({ files }: { files: OutputFile[] }) {
             </div>
           ))}
         </div>
+
+        <div className="rounded-lg border border-dashed border-border px-3 py-2.5 space-y-1.5">
+          <p className="text-[10px] font-semibold uppercase tracking-widest text-ink-muted">Standalone Usage</p>
+          <p className="text-[11px] text-ink-muted">Run gates outside sprint flow:</p>
+          <code className="block font-mono text-[11px] text-ink-secondary">bash .claude/hooks/transition.sh --gate &lt;gate-name&gt;</code>
+          <code className="block font-mono text-[11px] text-ink-secondary">bash .claude/hooks/transition.sh --command &quot;&lt;shell-command&gt;&quot;</code>
+        </div>
       </div>
     );
   } catch {
