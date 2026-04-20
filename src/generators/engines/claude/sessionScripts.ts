@@ -198,6 +198,9 @@ mkdir -p "$HARNESS/log"
 echo "$(jq -r '.sprint.current' "$HARNESS/state.json" 2>/dev/null || echo 'think')" > .harness/current-stage 2>/dev/null || true
 echo "$(jq -r '.role.current' "$HARNESS/state.json" 2>/dev/null || echo 'ceo')" > .harness/current-role 2>/dev/null || true
 
+# Activate sprint guard — enforce write path/tool restrictions for stages
+touch "$HARNESS/sprint-guard-active"
+
 echo ""
 echo "Harness initialized. Start with: /think"
 echo "Check status anytime: bash .harness/scripts/check.sh"
