@@ -189,8 +189,8 @@ export function getStageArtifacts(stage: SprintStage): OutputArtifact[] {
 
   // Multi-role stages: add consensus artifact — blocking for Think/Plan
   if (stage.roles.length >= 2) {
-    const hasConsensus = artifacts.some((a) => a.path === 'docs/negotiation/consensus.md');
-    if (!hasConsensus) {
+    const consensusIdx = artifacts.findIndex((a) => a.path === 'docs/negotiation/consensus.md');
+    if (consensusIdx === -1) {
       artifacts.push({
         path: 'docs/negotiation/consensus.md',
         description: 'Multi-role negotiation consensus',
@@ -198,6 +198,11 @@ export function getStageArtifacts(stage: SprintStage): OutputArtifact[] {
         sectionMarker: '## Consensus',
         blockOnFail: stage.name === 'think' || stage.name === 'plan',
       });
+    } else if (stage.name === 'think' || stage.name === 'plan') {
+      artifacts[consensusIdx] = {
+        ...artifacts[consensusIdx],
+        blockOnFail: true,
+      };
     }
   }
 
