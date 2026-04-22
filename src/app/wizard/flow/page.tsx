@@ -14,6 +14,11 @@ const STEP_PATHS = [
   '/wizard/generate',
 ];
 
+const DEFAULT_NEGOTIATION: Partial<Record<StageName, RoleName[]>> = {
+  think: ['ceo', 'eng-manager', 'qa'],
+  plan: ['ceo', 'eng-manager', 'qa'],
+};
+
 const DEFAULT_STAGES: { name: StageName; order: number; roles: RoleName[] }[] = [
   { name: 'think', order: 0, roles: ['ceo'] },
   { name: 'plan', order: 1, roles: ['ceo', 'designer'] },
@@ -44,6 +49,7 @@ function buildDefaultSprint(): SprintStage[] {
     gates: [],
     outputFormat: '',
     stageConfig: DEFAULT_STAGE_CONFIGS[name],
+    ...(DEFAULT_NEGOTIATION[name] ? { negotiationRoles: DEFAULT_NEGOTIATION[name] } : {}),
   }));
 }
 

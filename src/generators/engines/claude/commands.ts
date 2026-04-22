@@ -495,7 +495,7 @@ export function generateClaudeCommands(config: ProjectConfig): OutputFile[] {
 
     // Negotiation protocol for multi-role stages
     const negotiationSection = renderNegotiationProtocol(
-      stage.name, stage.roles, configuredRoles
+      stage.name, stage.roles, configuredRoles, stage.negotiationRoles
     );
 
     // Gates section
@@ -670,7 +670,7 @@ export function generateSprintCommand(config: ProjectConfig): OutputFile | null 
 
     // Negotiation protocol for multi-role stages
     const negotiationSection = renderNegotiationProtocol(
-      stage.name, stage.roles, configuredRoles
+      stage.name, stage.roles, configuredRoles, stage.negotiationRoles
     );
     if (negotiationSection) {
       lines.push(negotiationSection);

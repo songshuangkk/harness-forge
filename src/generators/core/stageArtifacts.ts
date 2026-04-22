@@ -1,4 +1,5 @@
 import type { StageName, SprintStage, OutputArtifact } from '@/types';
+import { getNegotiationRoles } from './negotiation';
 
 /**
  * Default output artifacts for each stage.
@@ -188,7 +189,7 @@ export function getStageArtifacts(stage: SprintStage): OutputArtifact[] {
     : [...(DEFAULT_STAGE_ARTIFACTS[stage.name] ?? [])];
 
   // Multi-role stages: add consensus artifact — blocking for Think/Plan
-  if (stage.roles.length >= 2) {
+  if (getNegotiationRoles(stage.name, stage.roles, stage.negotiationRoles).length >= 2) {
     const consensusIdx = artifacts.findIndex((a) => a.path === 'docs/negotiation/consensus.md');
     if (consensusIdx === -1) {
       artifacts.push({

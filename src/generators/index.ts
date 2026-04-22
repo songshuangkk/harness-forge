@@ -14,6 +14,7 @@ import { generateCodeReviewCommand } from './engines/claude/codeReview';
 import { generateClaudeSettings } from './engines/claude/settings';
 import { generateSessionScripts } from './engines/claude/sessionScripts';
 import { generateSandboxScripts } from './engines/claude/sandboxScripts';
+import { generateNegotiateScript } from './engines/claude/negotiateScript';
 
 // Cursor engine adapter
 import { generateCursorrules } from './engines/cursor/cursorrules';
@@ -63,6 +64,8 @@ export function generateAll(config: ProjectConfig, options?: GenerateOptions): O
       files.push(generateClaudeSettings(config));
       files.push(...generateSessionScripts(config));
       files.push(...generateSandboxScripts(config));
+      const negotiateScript = generateNegotiateScript(config);
+      if (negotiateScript) files.push(negotiateScript);
       break;
 
     case 'cursor':

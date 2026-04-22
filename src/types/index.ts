@@ -162,6 +162,8 @@ export interface SprintStage {
   /** Concrete artifacts this stage must produce (drives gate generation) */
   outputArtifacts?: OutputArtifact[];
   stageConfig?: StageSpecificConfig;
+  /** Roles to participate in multi-role negotiation; undefined = use defaults */
+  negotiationRoles?: RoleName[];
 }
 
 export interface RoleConfig {

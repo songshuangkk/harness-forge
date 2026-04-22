@@ -571,6 +571,17 @@ export function FlowEditor({ sprint, onChange }: FlowEditorProps) {
     [sprint, updateStage]
   );
 
+  const toggleNegotiationRole = useCallback(
+    (stageId: string, role: RoleName) => {
+      const stage = sprint.find((s) => s.id === stageId);
+      if (!stage) return;
+      const current = stage.negotiationRoles ?? [];
+      const next = current.includes(role) ? current.filter((r) => r !== role) : [...current, role];
+      updateStage(stageId, { negotiationRoles: next });
+    },
+    [sprint, updateStage]
+  );
+
   const addGate = useCallback(
     (stageId: string, value: string) => {
       const stage = sprint.find((s) => s.id === stageId);
@@ -655,6 +666,7 @@ export function FlowEditor({ sprint, onChange }: FlowEditorProps) {
           <StageRow key={stage.id} stage={stage} color={STAGE_COLORS[stage.name]} meta={STAGE_META[stage.name]} examples={STAGE_EXAMPLES[stage.name]}
             onToggleEnabled={(enabled) => updateStage(stage.id, { enabled })}
             onToggleRole={(role) => toggleRole(stage.id, role)}
+            onToggleNegotiationRole={(role) => toggleNegotiationRole(stage.id, role)}
             onAddGate={(value) => addGate(stage.id, value)}
             onRemoveGate={(index) => removeGate(stage.id, index)}
             onOutputFormatChange={(fmt) => updateStage(stage.id, { outputFormat: fmt })}
@@ -677,13 +689,14 @@ interface StageRowProps {
   examples: StageExamples;
   onToggleEnabled: (enabled: boolean) => void;
   onToggleRole: (role: RoleName) => void;
+  onToggleNegotiationRole: (role: RoleName) => void;
   onAddGate: (value: string) => void;
   onRemoveGate: (index: number) => void;
   onOutputFormatChange: (value: string) => void;
   onUpdateConfig: (patch: Record<string, unknown>) => void;
 }
 
-function StageRow({ stage, color, meta, examples, onToggleEnabled, onToggleRole, onAddGate, onRemoveGate, onOutputFormatChange, onUpdateConfig }: StageRowProps) {
+function StageRow({ stage, color, meta, examples, onToggleEnabled, onToggleRole, onToggleNegotiationRole, onAddGate, onRemoveGate, onOutputFormatChange, onUpdateConfig }: StageRowProps) {
   const [gateInput, setGateInput] = useState('');
   const [expanded, setExpanded] = useState(false);
 
@@ -740,6 +753,35 @@ function StageRow({ stage, color, meta, examples, onToggleEnabled, onToggleRole,
                   {/* Stage-specific config */}
                   <div className="rounded-lg p-4" style={{ backgroundColor: 'oklch(0.975 0.002 75)' }}>
                     <StageConfigSection stage={stage} onUpdateConfig={onUpdateConfig} color={color} />
+                  </div>
+
+                  {/* Negotiation Roles */}
+                  <div>
+                    <div className="flex items-baseline gap-2 mb-2">
+                      <span className="text-xs font-semibold" style={{ color: color.text }}>Negotiation Roles</span>
+                      <span className="text-[10px]" style={{ color: color.textMuted }}>Select roles for multi-role discussion before stage output</span>
+                    </div>
+                    <div className="flex flex-wrap gap-1">
+                      {ALL_ROLES.map((role) => {
+                        const selected = stage.negotiationRoles?.includes(role.id) ?? false;
+                        return (
+                          <button key={role.id} onClick={() => onToggleNegotiationRole(role.id)}
+                            className="rounded-md px-2 py-0.5 text-xs font-medium transition-all duration-200 border"
+                            style={{
+                              backgroundColor: selected ? color.accentBg : 'oklch(0.975 0.002 75)',
+                              borderColor: selected ? color.accent : 'oklch(0.88 0.005 75)',
+                              color: selected ? color.accent : 'oklch(0.55 0.008 75)',
+                            }}>
+                            {role.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    {(stage.negotiationRoles?.length ?? 0) > 0 && (
+                      <p className="mt-1.5 text-[10px]" style={{ color: color.textMuted }}>
+                        {stage.negotiationRoles!.length} role{stage.negotiationRoles!.length > 1 ? 's' : ''} will negotiate via 2-round sub-agent discussion
+                      </p>
+                    )}
                   </div>
 
                   {/* Quality Gates */}
