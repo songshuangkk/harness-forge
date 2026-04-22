@@ -152,7 +152,7 @@ const STATIC_COMMANDS: Partial<Record<StageName, StageCommand>> = {
 6. **Write a refined problem statement** with success metrics and constraints.
 7. Output the design document to feed into the Plan stage.
 
-**Negotiation (MANDATORY — if 2+ roles assigned)**: Before finalizing output, run the full Negotiation Protocol below. The consensus gate will block advancement to Plan if \`docs/negotiation/consensus.md\` is missing. Do NOT skip this.`,
+> **Negotiation**: If 2+ roles are assigned, complete the Negotiation Protocol section below before writing output documents.`,
   },
   review: {
     title: 'Review \u2014 Multi-Dimensional Quality Audit',
