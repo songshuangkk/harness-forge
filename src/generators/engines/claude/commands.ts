@@ -1,5 +1,6 @@
 import type { ProjectConfig, OutputFile, StageName, RoleName, RoleConfig, StageSpecificConfig, ThinkConfig, PlanConfig, BuildConfig, ReviewConfig, TestConfig, ShipConfig, ReflectConfig } from '@/types';
 import { getRolePrompt } from '@/generators/core/rolePrompts';
+import { renderNegotiationProtocol } from '@/generators/core/negotiation';
 
 // ── Stage process content (real methodology, not placeholders) ──
 
@@ -35,7 +36,7 @@ function generatePlanProcess(taskStructure: 'simple' | 'structured'): string {
 \`\`\`
 
    Every task MUST have all fields. \`subagent_hint\` determines parallel execution strategy in Build.
-3. **Run multi-role review** (see Role Perspectives below for each role's focus).
+3. **Run multi-role negotiation** (MANDATORY — see Negotiation Protocol section below for sub-agent prompts). The consensus gate will block advancement if \`docs/negotiation/consensus.md\` is missing.
 4. **Order tasks** by dependency graph. Mark independent tasks with \`subagent_hint: Independent\`.
 5. **Verify each task** has concrete file_path and at least 2 verification_steps.
 6. **Estimate risk areas** and plan mitigation for each.
@@ -49,7 +50,7 @@ function generatePlanProcess(taskStructure: 'simple' | 'structured'): string {
    - File paths that will be created or modified
    - Specific verification steps for each task
    - Estimated complexity (S/M/L)
-3. **Run multi-role review** (see Role Perspectives below for each role's focus).
+3. **Run multi-role negotiation** (MANDATORY — see Negotiation Protocol section below for sub-agent prompts). The consensus gate will block advancement if \`docs/negotiation/consensus.md\` is missing.
 4. **Order tasks** by dependency. Identify what can run in parallel.
 5. **Define acceptance criteria** for each task \u2014 concrete, testable.
 6. **Estimate risk areas** and plan mitigation for each.
@@ -149,7 +150,9 @@ const STATIC_COMMANDS: Partial<Record<StageName, StageCommand>> = {
 4. **Identify hidden assumptions** the requester may not have stated.
 5. **Scope the work** \u2014 define what is in-scope and explicitly what is out-of-scope.
 6. **Write a refined problem statement** with success metrics and constraints.
-7. Output the design document to feed into the Plan stage.`,
+7. Output the design document to feed into the Plan stage.
+
+**Negotiation (MANDATORY — if 2+ roles assigned)**: Before finalizing output, run the full Negotiation Protocol below. The consensus gate will block advancement to Plan if \`docs/negotiation/consensus.md\` is missing. Do NOT skip this.`,
   },
   review: {
     title: 'Review \u2014 Multi-Dimensional Quality Audit',
@@ -490,6 +493,11 @@ export function generateClaudeCommands(config: ProjectConfig): OutputFile[] {
     // Role perspectives section (dynamic)
     const roleSection = renderRolePerspectives(stage.roles, configuredRoles);
 
+    // Negotiation protocol for multi-role stages
+    const negotiationSection = renderNegotiationProtocol(
+      stage.name, stage.roles, configuredRoles
+    );
+
     // Gates section
     const gatesSection = ['## Gates (check before proceeding)', ''];
     if (stage.gates.length > 0) {
@@ -535,6 +543,7 @@ export function generateClaudeCommands(config: ProjectConfig): OutputFile[] {
       process,
       '',
       roleSection,
+      negotiationSection,
       gatesSection.join('\n'),
       constraintsSection.join('\n'),
       configSection,
@@ -657,6 +666,14 @@ export function generateSprintCommand(config: ProjectConfig): OutputFile | null 
     const roleSection = renderRolePerspectives(stage.roles, configuredRoles);
     if (roleSection) {
       lines.push(roleSection);
+    }
+
+    // Negotiation protocol for multi-role stages
+    const negotiationSection = renderNegotiationProtocol(
+      stage.name, stage.roles, configuredRoles
+    );
+    if (negotiationSection) {
+      lines.push(negotiationSection);
     }
 
     // Gates
