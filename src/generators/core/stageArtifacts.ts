@@ -183,8 +183,23 @@ export const DEFAULT_STAGE_ARTIFACTS: Record<StageName, OutputArtifact[]> = {
  * Uses stage-specific overrides if defined, otherwise falls back to defaults.
  */
 export function getStageArtifacts(stage: SprintStage): OutputArtifact[] {
-  if (stage.outputArtifacts && stage.outputArtifacts.length > 0) {
-    return stage.outputArtifacts;
+  const artifacts = stage.outputArtifacts && stage.outputArtifacts.length > 0
+    ? [...stage.outputArtifacts]
+    : [...(DEFAULT_STAGE_ARTIFACTS[stage.name] ?? [])];
+
+  // Multi-role stages: add consensus artifact — blocking for Think/Plan
+  if (stage.roles.length >= 2) {
+    const hasConsensus = artifacts.some((a) => a.path === 'docs/negotiation/consensus.md');
+    if (!hasConsensus) {
+      artifacts.push({
+        path: 'docs/negotiation/consensus.md',
+        description: 'Multi-role negotiation consensus',
+        verification: 'contains-section',
+        sectionMarker: '## Consensus',
+        blockOnFail: stage.name === 'think' || stage.name === 'plan',
+      });
+    }
   }
-  return DEFAULT_STAGE_ARTIFACTS[stage.name] ?? [];
+
+  return artifacts;
 }
