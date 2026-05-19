@@ -2,7 +2,7 @@ export type Language = 'typescript' | 'javascript' | 'python' | 'dart' | 'go' | 
 
 export type SessionStorage = 'local-file' | 'git-based' | 'custom';
 export type RecoveryStrategy = 'last-event' | 'last-checkpoint' | 'custom';
-export type AIEngine = 'claude-code' | 'codex' | 'cursor' | 'custom';
+export type AIEngine = 'claude-code' | 'custom';
 export type ContextStrategy = 'compaction' | 'sliding-window' | 'full';
 export type SandboxType = 'local' | 'docker' | 'remote';
 export type CredentialPolicy = 'vault' | 'bundled' | 'none';

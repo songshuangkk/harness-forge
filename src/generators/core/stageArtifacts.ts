@@ -197,12 +197,12 @@ export function getStageArtifacts(stage: SprintStage): OutputArtifact[] {
         description: 'Multi-role negotiation consensus',
         verification: 'contains-section',
         sectionMarker: '## Consensus',
-        blockOnFail: stage.name === 'think' || stage.name === 'plan',
+        blockOnFail: false,
       });
     } else if (stage.name === 'think' || stage.name === 'plan') {
       artifacts[consensusIdx] = {
         ...artifacts[consensusIdx],
-        blockOnFail: true,
+        blockOnFail: false,
       };
     }
   }

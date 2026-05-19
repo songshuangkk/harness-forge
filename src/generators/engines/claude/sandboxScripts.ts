@@ -45,7 +45,10 @@ set -uo pipefail
 INPUT=$(cat || true)
 
 # Extract file content from Write/Edit tool input
-CONTENT=$(echo "$INPUT" | grep -o '"content":"[^"]*"' | head -1 | sed 's/"content":"//;s/"$//' || true)
+CONTENT=""
+if command -v jq >/dev/null 2>&1; then
+  CONTENT=$(echo "$INPUT" | jq -r '.tool_input.content // .tool_input.new_content // empty' 2>/dev/null || true)
+fi
 
 if [ -z "$CONTENT" ]; then
   exit 0

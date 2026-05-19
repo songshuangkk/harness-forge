@@ -60,57 +60,10 @@ done
 
 if [ \${#MISSING[@]} -gt 0 ]; then
   echo "Missing required dependencies: \${MISSING[*]}"
-
-  # Try auto-install
-  if command -v brew &>/dev/null; then
-    echo ""
-    echo "Homebrew detected. Installing missing dependencies..."
-    brew install \${MISSING[@]/git/} 2>/dev/null || true
-    # git is typically pre-installed; install via Xcode CLT on macOS
-    if ! command -v git &>/dev/null; then
-      echo "git not found. Install via: xcode-select --install"
-    fi
-
-    # Re-check after install
-    STILL_MISSING=()
-    for cmd in "\${MISSING[@]}"; do
-      if ! command -v "$cmd" &>/dev/null; then
-        STILL_MISSING+=("$cmd")
-      fi
-    done
-
-    if [ \${#STILL_MISSING[@]} -gt 0 ]; then
-      echo "FATAL: Auto-install failed for: \${STILL_MISSING[*]}"
-      echo "Install manually: brew install jq git"
-      exit 1
-    fi
-    echo "Dependencies installed successfully."
-  elif command -v apt-get &>/dev/null; then
-    echo ""
-    echo "apt detected. Attempting to install..."
-    sudo apt-get update -qq && sudo apt-get install -y -qq jq git 2>/dev/null || true
-
-    # Re-check after install
-    STILL_MISSING=()
-    for cmd in "\${MISSING[@]}"; do
-      if ! command -v "$cmd" &>/dev/null; then
-        STILL_MISSING+=("$cmd")
-      fi
-    done
-
-    if [ \${#STILL_MISSING[@]} -gt 0 ]; then
-      echo "FATAL: Auto-install failed for: \${STILL_MISSING[*]}"
-      echo "Install manually: sudo apt-get install jq git"
-      exit 1
-    fi
-    echo "Dependencies installed successfully."
-  else
-    echo "FATAL: No supported package manager found."
-    echo "Install manually:"
-    echo "  macOS:  brew install jq git"
-    echo "  Ubuntu: sudo apt-get install jq git"
-    exit 1
-  fi
+  echo "Install manually:"
+  echo "  macOS:  brew install \${MISSING[*]}"
+  echo "  Ubuntu: sudo apt-get install \${MISSING[*]}"
+  exit 1
 fi
 
 # ── Archive previous sprint artifacts & reset state ──
@@ -201,6 +154,9 @@ echo "$(jq -r '.role.current' "$HARNESS/state.json" 2>/dev/null || echo 'ceo')" 
 # Activate sprint guard — enforce write path/tool restrictions for stages
 touch "$HARNESS/sprint-guard-active"
 
+# Record sprint start ref for diff-based gates (review_diff_lint uses this)
+git rev-parse HEAD > "$HARNESS/sprint-start-ref" 2>/dev/null || true
+
 echo ""
 echo "Harness initialized. Start with: /think"
 echo "Check status anytime: bash .harness/scripts/check.sh"
@@ -260,9 +216,12 @@ if [ "\$LINE_COUNT" -gt ${eventRetention} ]; then
   mv "\$TEMP_FILE" "\$EVENT_LOG"
 fi
 
-# Auto-commit session log (non-blocking, never fail the hook)
-git add "\$EVENT_LOG" 2>/dev/null || true
-git commit -m "session: save event \$(date -u +%H%M%S)" --no-gpg-sign 2>/dev/null || true
+# Batch commits: only commit every 10 events to avoid polluting git history
+LINE_COUNT=\$(wc -l < "\$EVENT_LOG" | tr -d ' ')
+if [ \$((LINE_COUNT % 10)) -eq 0 ]; then
+  git add "\$EVENT_LOG" 2>/dev/null || true
+  git commit -m "session: batch save (\$LINE_COUNT events)" --no-gpg-sign 2>/dev/null || true
+fi
 `;
 }
 

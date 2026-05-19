@@ -189,8 +189,6 @@ export default function ArchitecturePage() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="claude-code">Claude Code</SelectItem>
-                  <SelectItem value="codex">Codex</SelectItem>
-                  <SelectItem value="cursor">Cursor</SelectItem>
                   <SelectItem value="custom">Custom</SelectItem>
                 </SelectContent>
               </Select>

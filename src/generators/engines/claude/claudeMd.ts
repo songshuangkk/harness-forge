@@ -5,8 +5,6 @@ import { getRolePrompt } from '@/generators/core/rolePrompts';
 
 const ENGINE_CONFIG_FILE: Record<AIEngine, string> = {
   'claude-code': 'CLAUDE.md',
-  codex: 'AGENTS.md',
-  cursor: '.cursorrules',
   custom: 'AI_CONFIG.md',
 };
 

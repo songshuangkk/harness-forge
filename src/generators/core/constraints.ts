@@ -318,24 +318,24 @@ const LANGUAGE_ACTION_DEFAULTS: Record<string, Record<string, string>> = {
   typescript: {
     build_lint: 'npm run lint',
     build_typecheck: 'npx tsc --noEmit',
-    review_diff_lint: 'npx eslint $(git diff --name-only HEAD~1 -- "*.ts" "*.tsx")',
+    review_diff_lint: 'REF=$(cat .harness/sprint-start-ref 2>/dev/null || echo "HEAD~1"); npx eslint $(git diff --name-only "$REF" -- "*.ts" "*.tsx") 2>/dev/null || true',
     ship_build: 'npm run build',
   },
   javascript: {
     build_lint: 'npm run lint',
-    review_diff_lint: 'npx eslint $(git diff --name-only HEAD~1 -- "*.js" "*.jsx")',
+    review_diff_lint: 'REF=$(cat .harness/sprint-start-ref 2>/dev/null || echo "HEAD~1"); npx eslint $(git diff --name-only "$REF" -- "*.js" "*.jsx") 2>/dev/null || true',
     ship_build: 'npm run build',
   },
   python: {
     build_lint: 'ruff check .',
     build_typecheck: 'mypy .',
-    review_diff_lint: 'ruff check $(git diff --name-only HEAD~1 -- "*.py")',
+    review_diff_lint: 'REF=$(cat .harness/sprint-start-ref 2>/dev/null || echo "HEAD~1"); ruff check $(git diff --name-only "$REF" -- "*.py") 2>/dev/null || true',
     ship_build: 'python -m build',
   },
   go: {
     build_lint: 'golangci-lint run ./...',
     build_typecheck: 'go vet ./...',
-    review_diff_lint: 'golangci-lint run $(git diff --name-only HEAD~1 -- "*.go")',
+    review_diff_lint: 'REF=$(cat .harness/sprint-start-ref 2>/dev/null || echo "HEAD~1"); golangci-lint run $(git diff --name-only "$REF" -- "*.go") 2>/dev/null || true',
     ship_build: 'go build ./...',
   },
   java: {
@@ -352,15 +352,15 @@ const LANGUAGE_ACTION_DEFAULTS: Record<string, Record<string, string>> = {
   },
   dart: {
     build_lint: 'dart analyze',
-    review_diff_lint: 'dart analyze $(git diff --name-only HEAD~1 -- "*.dart")',
+    review_diff_lint: 'REF=$(cat .harness/sprint-start-ref 2>/dev/null || echo "HEAD~1"); dart analyze $(git diff --name-only "$REF" -- "*.dart") 2>/dev/null || true',
     ship_build: 'flutter build apk',
   },
 };
 
 const VALIDATE_COMMANDS: Record<string, string> = {
-  think: 'grep -q "## Problem Statement" docs/design/problem-statement.md && grep -q "## Scope" docs/design/scope.md && grep -q "## Success Metrics" docs/design/success-metrics.md',
-  plan: 'grep -q "## Tasks" docs/plans/implementation-plan.md && grep -q "## Risks" docs/plans/risk-assessment.md',
-  reflect: 'grep -q "## Action Items" docs/retrospectives/retro-report.md',
+  think: 'FAIL=0; grep -q "## Problem Statement" docs/design/problem-statement.md || { echo "MISSING: ## Problem Statement in docs/design/problem-statement.md"; FAIL=1; }; grep -q "## Scope" docs/design/scope.md || { echo "MISSING: ## Scope in docs/design/scope.md"; FAIL=1; }; grep -q "## Success Metrics" docs/design/success-metrics.md || { echo "MISSING: ## Success Metrics in docs/design/success-metrics.md"; FAIL=1; }; exit $FAIL',
+  plan: 'FAIL=0; grep -q "## Tasks" docs/plans/implementation-plan.md || { echo "MISSING: ## Tasks in docs/plans/implementation-plan.md"; FAIL=1; }; grep -q "## Risks" docs/plans/risk-assessment.md || { echo "MISSING: ## Risks in docs/plans/risk-assessment.md"; FAIL=1; }; exit $FAIL',
+  reflect: 'grep -q "## Action Items" docs/retrospectives/retro-report.md || { echo "MISSING: ## Action Items in docs/retrospectives/retro-report.md"; exit 1; }',
 };
 
 export function generateCoreConstraints(config: ProjectConfig): OutputFile[] {

@@ -16,17 +16,6 @@ import { generateSessionScripts } from './engines/claude/sessionScripts';
 import { generateSandboxScripts } from './engines/claude/sandboxScripts';
 import { generateNegotiateScript } from './engines/claude/negotiateScript';
 
-// Cursor engine adapter
-import { generateCursorrules } from './engines/cursor/cursorrules';
-import { generateCursorRules } from './engines/cursor/rules';
-import { generateCursorMcp } from './engines/cursor/mcp';
-
-// Codex engine adapter
-import { generateAgentsMd } from './engines/codex/agentsMd';
-import { generateCodexSkills } from './engines/codex/skills';
-import { generateCodexHookScripts, generateCodexHooksJson } from './engines/codex/hooks';
-import { generateCodexConfig } from './engines/codex/config';
-
 // Scaffold (always generated)
 import { generateScaffold } from './scaffold';
 
@@ -48,43 +37,23 @@ export function generateAll(config: ProjectConfig, options?: GenerateOptions): O
   files.push(...generateCoreFlows(config));
   files.push(...generateCoreConstraints(config));
 
-  // 2. Engine adapter files
+  // 2. Claude Code engine adapter files
   const engine = config.architecture.harness.engine;
 
-  switch (engine) {
-    case 'claude-code':
-      files.push(generateClaudeMd(config));
-      files.push(...generateClaudeCommands(config));
-      const sprintCmd = generateSprintCommand(config);
-      if (sprintCmd) files.push(sprintCmd);
-      files.push(generateNewTaskCommand());
-      const codeReviewCmd = generateCodeReviewCommand(config);
-      if (codeReviewCmd) files.push(codeReviewCmd);
-      files.push(...generateClaudeHooks(config));
-      files.push(generateClaudeSettings(config));
-      files.push(...generateSessionScripts(config));
-      files.push(...generateSandboxScripts(config));
-      const negotiateScript = generateNegotiateScript(config);
-      if (negotiateScript) files.push(negotiateScript);
-      break;
-
-    case 'cursor':
-      files.push(generateCursorrules(config));
-      files.push(...generateCursorRules(config));
-      files.push(generateCursorMcp(config));
-      break;
-
-    case 'codex':
-      files.push(generateAgentsMd(config));
-      files.push(...generateCodexSkills(config));
-      files.push(...generateCodexHookScripts(config));
-      files.push(generateCodexHooksJson(config));
-      files.push(generateCodexConfig(config));
-      break;
-
-    case 'custom':
-      // Core + scaffold only
-      break;
+  if (engine === 'claude-code') {
+    files.push(generateClaudeMd(config));
+    files.push(...generateClaudeCommands(config));
+    const sprintCmd = generateSprintCommand(config);
+    if (sprintCmd) files.push(sprintCmd);
+    files.push(generateNewTaskCommand());
+    const codeReviewCmd = generateCodeReviewCommand(config);
+    if (codeReviewCmd) files.push(codeReviewCmd);
+    files.push(...generateClaudeHooks(config));
+    files.push(generateClaudeSettings(config));
+    files.push(...generateSessionScripts(config));
+    files.push(...generateSandboxScripts(config));
+    const negotiateScript = generateNegotiateScript(config);
+    if (negotiateScript) files.push(negotiateScript);
   }
 
   // 3. Scaffold files (always)
@@ -101,7 +70,7 @@ export function generateAll(config: ProjectConfig, options?: GenerateOptions): O
     const prev = seen.get(files[i].path);
     if (prev !== undefined) {
       files.splice(prev, 1);
-      i--; // adjust index after splice
+      i--;
     }
     seen.set(files[i].path, i);
   }

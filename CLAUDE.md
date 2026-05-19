@@ -27,7 +27,7 @@ No test framework.
 src/
   components/ui/       — shadcn/ui primitives
   components/wizard/   — wizard-specific components
-  generators/          — output file generators (engines/claude, codex, cursor)
+  generators/          — output file generators (engines/claude)
   templates/           — template presets (solo-dev, gstack-sprint, managed-agents)
   store/               — Zustand store
   types/               — type definitions

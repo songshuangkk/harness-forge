@@ -20,8 +20,6 @@ const STEP_PATHS = [
 
 const ENGINE_LABELS: Record<string, string> = {
   'claude-code': 'Claude Code',
-  'codex': 'OpenAI Codex',
-  'cursor': 'Cursor',
   'custom': 'Custom',
 };
 
@@ -36,14 +34,10 @@ function categorizeFile(path: string): 'core' | 'adapter' | 'docs' {
   if (path.startsWith('.harness/')) return 'core';
   // Docs: README.md or docs/
   if (path === 'README.md' || path.startsWith('docs/')) return 'docs';
-  // Adapter: .claude/, .cursor/, .codex/, or engine entry files
+  // Adapter: .claude/ or engine entry files
   if (
     path.startsWith('.claude/') ||
-    path.startsWith('.cursor/') ||
-    path.startsWith('.codex/') ||
     path === 'CLAUDE.md' ||
-    path === '.cursorrules' ||
-    path === 'AGENTS.md' ||
     path === 'AI_CONFIG.md'
   ) {
     return 'adapter';
@@ -133,7 +127,6 @@ export default function GeneratePage() {
   }, [files]);
 
   const engineLabel = ENGINE_LABELS[config.architecture.harness.engine] ?? config.architecture.harness.engine;
-  const isAdvisory = config.architecture.harness.engine === 'codex' || config.architecture.harness.engine === 'cursor';
 
   const handleDownload = async () => {
     setDownloading(true);
@@ -174,7 +167,7 @@ export default function GeneratePage() {
             {config.project.name || 'project'} — {files.length} files
           </p>
           <p className="text-xs text-ink-muted">
-            {engineLabel}{isAdvisory ? ' (advisory)' : ''} &middot; {counts.core} core &middot; {counts.adapter} adapter &middot; {counts.docs} docs &middot; {formatBytes(totalSize)}
+            {engineLabel} &middot; {counts.core} core &middot; {counts.adapter} adapter &middot; {counts.docs} docs &middot; {formatBytes(totalSize)}
           </p>
         </div>
         <button

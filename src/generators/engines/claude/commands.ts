@@ -122,7 +122,14 @@ Tasks marked \`subagent_hint: Independent\` can run in parallel using the Agent 
   // Closing steps
   parts.push(`
 ${tddMode === 'enforced' ? '4' : '4'}. **Follow the task order** from the plan unless there is a clear reason to deviate.
-${tddMode === 'enforced' ? '5' : '5'}. **Commit incrementally** \u2014 one logical change per commit with a clear message.
+${tddMode === 'enforced' ? '5' : '5'}. **Commit incrementally** \u2014 one logical change per commit. Use conventional commits format:
+   \`\`\`
+   <type>(<scope>): <short description>
+
+   [optional body: what changed and why]
+   \`\`\`
+   Types: \`feat\`, \`fix\`, \`refactor\`, \`test\`, \`docs\`, \`chore\`
+   Example: \`feat(scheduling): add order dispatch event handler\`
 ${tddMode === 'enforced' ? '6' : '6'}. **Run existing tests** after each task to catch regressions early.
 ${tddMode === 'enforced' ? '7' : '7'}. **Document any deviations** from the plan and why they were necessary.
 ${tddMode === 'enforced' ? '8' : '8'}. Create a **new** build report at \`docs/reports/build-report.md\`. If the file already exists, run \`bash .claude/scripts/session-init.sh\` to archive the previous sprint first, then retry.`);
@@ -533,6 +540,33 @@ export function generateClaudeCommands(config: ProjectConfig): OutputFile[] {
       }
     }
 
+    // Stage completion — auto-advance to next stage
+    const stageIdx = enabledStages.indexOf(stage);
+    const isLast = stageIdx === enabledStages.length - 1;
+    const nextStage = enabledStages[stageIdx + 1];
+
+    let completionSection = '';
+    if (!isLast && nextStage) {
+      completionSection = [
+        '## Stage Completion',
+        '',
+        'When all gates pass:',
+        '- Run `bash .harness/scripts/check.sh` to confirm',
+        `- Run \`bash .claude/hooks/transition.sh ${nextStage.name}\` to advance`,
+        `- Execute \`/${nextStage.name}\` to begin the next stage`,
+        '',
+      ].join('\n');
+    } else {
+      completionSection = [
+        '## Stage Completion',
+        '',
+        'When all gates pass:',
+        '- Run `bash .harness/scripts/check.sh` to confirm',
+        '- This is the final stage. Sprint is complete.',
+        '',
+      ].join('\n');
+    }
+
     const parts = [
       frontmatter,
       `# ${title}`,
@@ -547,6 +581,7 @@ export function generateClaudeCommands(config: ProjectConfig): OutputFile[] {
       gatesSection.join('\n'),
       constraintsSection.join('\n'),
       configSection,
+      completionSection,
     ].filter((p) => p !== '');
 
     files.push({
@@ -607,33 +642,23 @@ export function generateSprintCommand(config: ProjectConfig): OutputFile | null 
     '',
   ];
 
-  // Render each enabled stage as a section
+  // Render each enabled stage as a lightweight section
   let renderedIdx = 0;
   for (let i = 0; i < enabledStages.length; i++) {
     const stage = enabledStages[i];
     const isLast = i === enabledStages.length - 1;
     const nextStage = enabledStages[i + 1];
 
-    // Get stage title and process (reuse existing generators)
+    // Get stage title
     let title: string;
-    let process: string;
-
     if (stage.name === 'plan') {
       title = 'Plan — Multi-Role Architecture Review';
-      const planConfig = stage.stageConfig as PlanConfig | undefined;
-      process = generatePlanProcess(planConfig?.taskStructure ?? 'simple');
     } else if (stage.name === 'build') {
       title = 'Build — Implementation';
-      const buildConfig = stage.stageConfig as BuildConfig | undefined;
-      process = generateBuildProcess(
-        buildConfig?.executionStrategy ?? 'single-agent',
-        buildConfig?.tddMode ?? 'optional'
-      );
     } else {
       const cmd = STATIC_COMMANDS[stage.name];
       if (!cmd) continue;
       title = cmd.title;
-      process = cmd.process;
     }
 
     renderedIdx++;
@@ -649,32 +674,14 @@ export function generateSprintCommand(config: ProjectConfig): OutputFile | null 
     lines.push(`## Stage ${stageNum}: ${title}`);
     lines.push('');
 
-    // Entry protocol
+    // Entry protocol (slim — references per-stage command)
     lines.push('### Entry Protocol');
     lines.push('');
     lines.push(`1. Run: \`bash .claude/hooks/transition.sh ${stage.name}\``);
     lines.push('   - If it fails, DO NOT proceed. Tell the user which gates are blocking.');
     lines.push(`2. You are now in stage **${title}** acting as **${primaryRoleLabel}**.`);
-    lines.push(`3. Read \`.harness/roles/${primaryRole}.md\` for your role definition.`);
+    lines.push(`3. Run \`/${stage.name}\` for the detailed stage process, roles, and negotiation protocol.`);
     lines.push('');
-
-    // Process (reuse existing content generators)
-    lines.push(process);
-    lines.push('');
-
-    // Role perspectives
-    const roleSection = renderRolePerspectives(stage.roles, configuredRoles);
-    if (roleSection) {
-      lines.push(roleSection);
-    }
-
-    // Negotiation protocol for multi-role stages
-    const negotiationSection = renderNegotiationProtocol(
-      stage.name, stage.roles, configuredRoles, stage.negotiationRoles
-    );
-    if (negotiationSection) {
-      lines.push(negotiationSection);
-    }
 
     // Gates
     lines.push('### Gates (must pass before advancing)');
@@ -703,19 +710,6 @@ export function generateSprintCommand(config: ProjectConfig): OutputFile | null 
       lines.push('None.');
     }
     lines.push('');
-
-    // Stage config
-    if (stage.stageConfig) {
-      const json = formatStageConfigJson(stage.name, stage.stageConfig);
-      if (json) {
-        lines.push('### Stage Config');
-        lines.push('');
-        lines.push('```json');
-        lines.push(json);
-        lines.push('```');
-        lines.push('');
-      }
-    }
 
     // Stage completion / advance
     lines.push('### Stage Completion');

@@ -28,10 +28,6 @@ function generateReadme(config: ProjectConfig): OutputFile {
   let engineSpecificGettingStarted = '';
   if (engine === 'claude-code') {
     engineSpecificGettingStarted = `Use \`/sprint\` to run the full development cycle, or individual commands (\`/think\`, \`/build\`, etc.) for specific stages.`;
-  } else if (engine === 'cursor') {
-    engineSpecificGettingStarted = `Stage rules are loaded automatically via \`.cursor/rules/\`. Reference them with \`@think\`, \`@plan\`, etc. in your prompts.`;
-  } else if (engine === 'codex') {
-    engineSpecificGettingStarted = `Skills are defined in \`.codex/skills/\`. Each skill contains gates, constraints, and configuration for its sprint stage.`;
   }
 
   const content = `# ${config.project.name}
@@ -47,7 +43,7 @@ ${stackLine}
 This project uses an AI-assisted development workflow.
 
 - The \`.harness/\` directory contains engine-agnostic definitions (config, roles, flows, constraints).
-- Engine-specific files are in ${engine === 'claude-code' ? '`.claude/` (commands, hooks, settings)' : engine === 'cursor' ? '`.cursor/` (rules, mcp)' : engine === 'codex' ? '`.codex/` (skills, hooks, config)' : 'the project root'}.
+- Engine-specific files are in ${engine === 'claude-code' ? '`.claude/` (commands, hooks, settings)' : 'the project root'}.
 - See \`${configFile}\` for the full configuration.
 ${engineSpecificGettingStarted ? `\n${engineSpecificGettingStarted}` : ''}
 `;
@@ -79,22 +75,6 @@ function generateFileStructureTree(config: ProjectConfig): string {
       '  commands/        Slash commands for each stage',
       '  hooks/           Gate and constraint hook scripts',
       'CLAUDE.md          Entry document',
-    );
-  } else if (engine === 'cursor') {
-    lines.push(
-      '.cursor/           Cursor adapter',
-      '  rules/           Stage rules (.mdc files)',
-      '  mcp.json         MCP server configuration',
-      '.cursorrules       Entry document',
-    );
-  } else if (engine === 'codex') {
-    lines.push(
-      '.codex/            Codex adapter',
-      '  skills/          Skill definitions per stage',
-      '  hooks/           Hook scripts',
-      '  hooks.json       Hook registrations',
-      '  config.toml      Codex configuration',
-      'AGENTS.md          Entry document',
     );
   } else {
     lines.push(
